@@ -166,7 +166,7 @@ project/
 
 ## Limitations
 
-- The 20,000-record subset is bounded and is not assumed to represent all Amazon search
+- The 300,000-record subset is bounded and is not assumed to represent all Amazon search
   traffic.
 - Exact grounding cannot return a correct query that is absent from the training catalog, and
   it may reduce the number of available suggestions.
