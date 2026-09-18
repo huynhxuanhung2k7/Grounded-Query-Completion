@@ -1,10 +1,6 @@
 .venv/
 __pycache__/
 *.py[cod]
-datasets/amazonqac/raw/
-.venv/
-__pycache__/
-*.py[cod]
 
 # Downloaded source data stays local; manifests and documentation may be tracked.
 datasets/amazonqac/raw/
