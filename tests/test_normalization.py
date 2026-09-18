@@ -1,6 +1,6 @@
 import pytest
 
-from autocomplete.normalization import normalize_term, normalized_nfkc, normalize_prefix
+from autocomplete.normalization import normalize_term, _normalized_nfkc, normalize_prefix
 
 
 @pytest.mark.parametrize(
@@ -13,13 +13,13 @@ from autocomplete.normalization import normalize_term, normalized_nfkc, normaliz
     ],
 )
 def test_normalized_nfkc_cases(raw: str, expected: str) -> None:
-    assert normalized_nfkc(raw) == expected
+    assert _normalized_nfkc(raw) == expected
 
 
 @pytest.mark.parametrize("value", [123, None, ["cat"]])
 def test_normalized_nfkc_rejects_non_strings(value: object) -> None:
     with pytest.raises(TypeError):
-        normalized_nfkc(value)
+        _normalized_nfkc(value)
 
 
 @pytest.mark.parametrize(
@@ -31,8 +31,8 @@ def test_normalized_nfkc_rejects_non_strings(value: object) -> None:
     ],
 )
 def test_normalized_nfkc_is_idempotent(raw: str) -> None:
-    once = normalized_nfkc(raw)
-    assert normalized_nfkc(once) == once
+    once = _normalized_nfkc(raw)
+    assert _normalized_nfkc(once) == once
 
 
 @pytest.mark.parametrize(
