@@ -35,11 +35,7 @@ linked to an available product.
 The project is under active development. The current implementation focuses on repository
 setup and data preparation:
 
-- a Python 3.11 package and test environment are configured with `uv`;
 - a bounded 20,000-record AmazonQAC sample has been acquired from four pinned source shards;
-- the local sample's schema, identifiers, date coverage, and content hash have been checked;
-- a notebook provides initial exploratory data analysis; and
-- schema validation and text normalization are in progress.
 
 The baseline recommenders, neural model, decoding, shared evaluation, and command-line
 autocomplete demo described below are planned work. The repository does not yet provide a
@@ -52,17 +48,17 @@ dataset containing real typed prefixes and submitted product searches. The proje
 bounded local subset so that the experiment remains reproducible and practical on student
 hardware.
 
-The current local sample contains 20,000 September 2023 training interactions selected as
-5,000 records from each of four fixed shards. Raw data is deliberately excluded from version
-control. Acquisition settings and source revision are recorded in
+The current local sample contains 20,000 September 2023 interactions selected as 5,000 records
+from each of four fixed shards. This sample is intended for building, debugging, and evaluating
+the first end-to-end development prototype; it is not necessarily the final training scale.
+After profiling memory use, runtime, acquisition cost, and date coverage, the project may scale
+the bounded source sample to **up to 300,000 interactions** for final model training. The exact
+size will be selected from measured feasibility rather than assumed in advance.
+
+Raw data is deliberately excluded from version control. Acquisition settings and source
+revision are recorded in
 [`scripts/probe_amazonqac.py`](scripts/probe_amazonqac.py), while dataset handling notes are in
 [`datasets/README.md`](datasets/README.md).
-
-The project will use chronological partitions:
-
-- earlier September interactions for training, catalog construction, and popularity counts;
-- later September interactions for development and improvement decisions; and
-- the separate October test data only for the final frozen evaluation.
 
 Splitting complete query records before generating model examples helps prevent prefixes from
 the same interaction leaking across partitions.
@@ -84,7 +80,9 @@ The planned experiment has five main stages:
    out-of-catalog rate, candidate recall, and request latency. Results will also be examined by
    catalog reachability, prefix compatibility, prefix length, and other relevant slices.
 
-The first goal is a small, reproducible end-to-end prototype. Any later improvement will be
+The first goal is a small, reproducible end-to-end prototype using the current 20,000-record
+sample. Once that pipeline works and its resource costs are measured, final training may use a
+larger bounded sample of up to 300,000 source interactions. Any later improvement will be
 motivated by observed development failures and tested as a controlled change before the final
 evaluation is run.
 
