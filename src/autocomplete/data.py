@@ -113,5 +113,5 @@ def choose_development_prefix(
     
     index = rng.randrange(prefix_num)
     return index, record[PREFIXES][index]
-    
+
     

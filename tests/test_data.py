@@ -114,7 +114,19 @@ def test_choose_development_prefix_edge_cases() -> None:
     
     with pytest.raises(ValueError, match="has no prefixes"): 
         choose_development_prefix(record, seed=42)
-        
+
+def test_prefix_choice_does_not_use_final_answer() -> None:
+    original = make_record(
+        query_id=123,
+        prefixes=["w", "wi", "wire"],
+        final_search_term="wireless mouse",
+    )
+    changed = {
+        **original,
+        "final_search_term": "completely different answer",
+    }
     
-        
+    index_original, prefix_original = choose_development_prefix(original, 42)
+    index_change, prefix_change = choose_development_prefix(changed, 42)  
     
+    assert (index_original, prefix_original) == (index_change, prefix_change)
