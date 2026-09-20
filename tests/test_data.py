@@ -130,3 +130,20 @@ def test_prefix_choice_does_not_use_final_answer() -> None:
     index_change, prefix_change = choose_development_prefix(changed, 42)  
     
     assert (index_original, prefix_original) == (index_change, prefix_change)
+
+def test_prefix_choice_is_independent_of_record_order() -> None:
+    records = [
+        make_record(query_id=101, prefixes=["w", "wi", "wire"]),
+        make_record(query_id=202, prefixes=["c", "ca", "cat"]),
+    ]
+    
+    normal_results = {
+        record["query_id"]: choose_development_prefix(record, 42) 
+        for record in records
+    }
+    reversed_results = {
+        record["query_id"]: choose_development_prefix(record, 42) 
+        for record in reversed(records)
+    }
+    
+    assert normal_results == reversed_results
