@@ -1,6 +1,10 @@
 import pytest
 
-from autocomplete.normalization import normalize_term, _normalized_nfkc, normalize_prefix
+from autocomplete.normalization import (
+    _normalized_nfkc,
+    normalize_prefix,
+    normalize_term,
+)
 
 
 @pytest.mark.parametrize(
