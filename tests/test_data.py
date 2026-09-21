@@ -1,4 +1,6 @@
+import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -10,6 +12,7 @@ from autocomplete.data import (
     make_development_cases,
     partition_record,
     validate_train_record,
+    write_development_cases,
 )
 from autocomplete.normalization import (
     normalize_prefix,
@@ -275,3 +278,53 @@ def test_development_cases_digest_handles_empty_cases() -> None:
 
     assert digest == development_cases_digest([])
     assert len(digest) == 64
+    
+def test_write_development_cases_saves_canonical_artifact(
+    tmp_path: Path    
+) -> None:
+    path = tmp_path / "processed" / "development_cases.json"
+    
+    case_a = DevelopmentCase(
+        query_id=101,
+        prefix_index=2,
+        raw_prefix="  Wireless   ",
+        normalized_prefix="wireless ",
+        raw_final_search_term="  WIRELESS   Mouse  ",
+        normalized_final_search_term="wireless mouse",
+    )
+    
+    case_b = DevelopmentCase(
+        query_id=202,
+        prefix_index=1,
+        raw_prefix="Gaming   Key",
+        normalized_prefix="gaming key",
+        raw_final_search_term="Gaming Keyboard",
+        normalized_final_search_term="gaming keyboard",
+    )
+    
+    cases = [case_b, case_a]
+    
+    write_development_cases(path, cases)
+    
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    
+    assert artifact["content_digest"] == development_cases_digest(cases)
+    assert [case["query_id"] for case in artifact["cases"]] == [101, 202]
+    
+def test_write_development_cases_rejects_existing_different_content(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "development_cases.json"
+    path.write_text("not JSON\n", encoding="utf-8")
+
+    case = DevelopmentCase(
+        query_id=101,
+        prefix_index=2,
+        raw_prefix="wireless ",
+        normalized_prefix="wireless ",
+        raw_final_search_term="wireless mouse",
+        normalized_final_search_term="wireless mouse",
+    )
+
+    with pytest.raises(FileExistsError, match="Refusing to overwrite"):
+        write_development_cases(path, [case])

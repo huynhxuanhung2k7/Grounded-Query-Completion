@@ -3,6 +3,7 @@ import json
 import random
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Final
 
 from autocomplete.normalization import normalize_prefix, normalize_term
@@ -149,11 +150,12 @@ def make_development_cases(
 
     return cases
 
-def development_cases_digest(
+def _canocial_case_data(
     cases: list[DevelopmentCase],
-) -> str:
-    cases = sorted(cases, key = lambda x: x.query_id)
-    case_data = [
+) -> list[dict[str, object]]:
+    sorted_cases = sorted(cases, key = lambda x: x.query_id)
+    
+    return [
         {
             "query_id": case.query_id,
             "prefix_index": case.prefix_index,
@@ -162,8 +164,13 @@ def development_cases_digest(
             "raw_final_search_term": case.raw_final_search_term,
             "normalized_final_search_term": case.normalized_final_search_term,
         }
-        for case in cases
+        for case in sorted_cases
     ]
+
+def development_cases_digest(
+    cases: list[DevelopmentCase],
+) -> str:
+    case_data = _canocial_case_data(cases)
     
     payload = json.dumps(
         case_data, 
@@ -173,3 +180,37 @@ def development_cases_digest(
     )
     
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def write_development_cases(
+    path: Path,
+    cases: list[DevelopmentCase],
+) -> None:
+    case_data = _canocial_case_data(cases)
+    content_digest = development_cases_digest(cases)
+    
+    artifact = {
+        "content_digest": content_digest,
+        "cases": case_data,
+    }
+    
+    artifact_text = json.dumps(
+        artifact,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":")
+    )
+    
+    expected_text = artifact_text + "\n"
+    
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    if path.exists():
+        
+        if path.read_text(encoding="utf-8") != artifact_text:
+            raise FileExistsError(
+            f"Refusing to overwrite different development cases: {path}"
+            )
+
+        return
+    
+    path.write_text(expected_text, encoding="utf-8")    
