@@ -249,6 +249,11 @@ def test_development_cases_digest_ignores_case_order() -> None:
     assert development_cases_digest([case_a, case_b]) == (
     development_cases_digest([case_b, case_a])
     )
+    
+    assert development_cases_digest([case_a, case_b]) == (
+    "0d9d7447b8da47705da365aca7eea70b"
+    "2b77181a97532fc893c6c1dfde545a4b"
+    )
 
 def test_development_cases_digest_changes_when_case_content_changes() -> None:
     original = DevelopmentCase(
