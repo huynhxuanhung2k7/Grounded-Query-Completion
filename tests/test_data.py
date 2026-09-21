@@ -1,8 +1,12 @@
+from dataclasses import replace
+
 import pytest
 
 from autocomplete.data import (
+    DevelopmentCase,
     PartitionResult,
     choose_development_prefix,
+    development_cases_digest,
     make_development_cases,
     partition_record,
     validate_train_record,
@@ -222,3 +226,47 @@ def test_make_development_cases_allows_no_development_records() -> None:
     )
 
     assert make_development_cases(partition, seed=42) == []
+
+def test_development_cases_digest_ignores_case_order() -> None:
+    case_a = DevelopmentCase(
+    query_id=101,
+    prefix_index=2,
+    raw_prefix="  Wireless   ",
+    normalized_prefix="wireless ",
+    raw_final_search_term="  WIRELESS   Mouse  ",
+    normalized_final_search_term="wireless mouse",
+    )   
+    
+    case_b = DevelopmentCase(
+    query_id=202,
+    prefix_index=1,
+    raw_prefix="Gaming   Key",
+    normalized_prefix="gaming key",
+    raw_final_search_term="Gaming Keyboard",
+    normalized_final_search_term="gaming keyboard",
+    )
+
+    assert development_cases_digest([case_a, case_b]) == (
+    development_cases_digest([case_b, case_a])
+    )
+
+def test_development_cases_digest_changes_when_case_content_changes() -> None:
+    original = DevelopmentCase(
+        query_id=101,
+        prefix_index=2,
+        raw_prefix="  Wireless   ",
+        normalized_prefix="wireless ",
+        raw_final_search_term="  WIRELESS   Mouse  ",
+        normalized_final_search_term="wireless mouse",
+    )   
+    changed = replace(original, normalized_prefix="changed")
+
+    assert development_cases_digest([original]) != (
+        development_cases_digest([changed])
+    )
+
+def test_development_cases_digest_handles_empty_cases() -> None:
+    digest = development_cases_digest([])
+
+    assert digest == development_cases_digest([])
+    assert len(digest) == 64

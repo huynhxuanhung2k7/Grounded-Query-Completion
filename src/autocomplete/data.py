@@ -1,3 +1,5 @@
+import hashlib
+import json
 import random
 from dataclasses import dataclass
 from datetime import datetime
@@ -146,3 +148,28 @@ def make_development_cases(
         cases.append(make_development_case(record, seed))
 
     return cases
+
+def development_cases_digest(
+    cases: list[DevelopmentCase],
+) -> str:
+    cases = sorted(cases, key = lambda x: x.query_id)
+    case_data = [
+        {
+            "query_id": case.query_id,
+            "prefix_index": case.prefix_index,
+            "raw_prefix": case.raw_prefix,
+            "normalized_prefix": case.normalized_prefix,
+            "raw_final_search_term": case.raw_final_search_term,
+            "normalized_final_search_term": case.normalized_final_search_term,
+        }
+        for case in cases
+    ]
+    
+    payload = json.dumps(
+        case_data, 
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":")
+    )
+    
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
