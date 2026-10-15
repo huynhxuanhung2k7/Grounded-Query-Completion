@@ -22,4 +22,4 @@ def normalize_prefix(text: str) -> str:
 
     collapsed = " ".join(normalized.split())
 
-    return collapsed + (" " if had_trailing_whitespace and collapsed else "")
+    return collapsed + (" " if had_trailing_whitespace else "")
