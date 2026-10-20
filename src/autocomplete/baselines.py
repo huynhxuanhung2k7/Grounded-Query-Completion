@@ -35,3 +35,18 @@ def suggest_popular(
     prefix_matches = sorted(find_prefix_matches(catalog, prefix), key=lambda term: (-counts[term], term))
     
     return prefix_matches[:k]
+
+if __name__ == "__main__":
+    CATALOG = {"cat bed", "cat food", "cat toy", "dog food"}
+    COUNTS = {
+        "cat bed": 2,
+        "cat food": 5,
+        "cat toy": 5,
+        "dog food": 20,
+    }
+    print(suggest_popular(
+        catalog=CATALOG,
+        counts=COUNTS,
+        prefix="dog",
+        k=2,
+    ))
