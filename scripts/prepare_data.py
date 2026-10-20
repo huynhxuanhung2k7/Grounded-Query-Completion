@@ -17,6 +17,7 @@ from scripts.probe_amazonqac import REVISION, ROW_PER_SHARD, SHARD_INDICES
 
 INPUT = Path("datasets/amazonqac/raw/train_sample_20k.parquet")
 OUTPUT = Path("datasets/amazonqac/processed/development_cases.json")
+MANIFEST = Path("datasets/amazonqac/manifest_20k.v2.json")
 SEED = 42
 
 def main() -> None:
@@ -63,8 +64,25 @@ def main() -> None:
         "hashes": {
             "raw_file SHA-256":  raw_file_digest,
             "development_cases SHA-256": development_cases_digest
-        }
+        },
+        "source_schema": raw_data.features.to_dict(),
+        "selected_query_ids": list(raw_data["query_id"]),
+        "selection_rule": {
+            "method": "first_n_rows_per_shard",
+            "shard_order": list(SHARD_INDICES),
+            "rows_per_shard": ROW_PER_SHARD,
+        },
     }
+    manifest_bytes = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    if MANIFEST.exists():
+        if MANIFEST.read_bytes() != manifest_bytes:
+            raise FileExistsError(
+            f"Refusing to overwrite different manifest: {MANIFEST}"
+        )
+        else:
+            print(f"Reusing identical manifest: {MANIFEST}")
+    else:
+        MANIFEST.write_bytes(manifest_bytes)
     
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
     print(f"{'Source:':<13}{len(raw_data)}")

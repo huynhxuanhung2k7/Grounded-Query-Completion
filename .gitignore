@@ -4,3 +4,4 @@ __pycache__/
 
 # Downloaded source data stays local; manifests and documentation may be tracked.
 datasets/amazonqac/raw/
+datasets/amazonqac/processed/

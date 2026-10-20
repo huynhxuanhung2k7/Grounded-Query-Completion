@@ -1,3 +1,4 @@
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -304,13 +305,14 @@ def test_write_development_cases_saves_canonical_artifact(
     
     cases = [case_b, case_a]
     
-    write_development_cases(path, cases)
-    
-    artifact = json.loads(path.read_text(encoding="utf-8"))
-    
-    assert artifact["content_digest"] == development_cases_digest(cases)
-    assert [case["query_id"] for case in artifact["cases"]] == [101, 202]
-    
+    returned_digest = write_development_cases(path, cases)
+    artifact = json.loads(path.read_bytes())
+
+    assert returned_digest == development_cases_digest(cases)
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == returned_digest
+    assert write_development_cases(path, cases) == returned_digest
+    assert [case["query_id"] for case in artifact] == [101, 202]
+
 def test_write_development_cases_rejects_existing_different_content(
     tmp_path: Path,
 ) -> None:
