@@ -26,3 +26,30 @@ def score_case(
     ) 
     
     return hit, reciprocal_rank
+
+def summarize_scores(
+    scores: list[tuple[bool, float]],
+) -> dict[str, int | float | None]:
+    """Summarize hit and reciprocal-rank scores across requests.
+
+    Args:
+        scores: One (hit, reciprocal_rank) tuple per request.
+
+    Returns:
+        A dictionary with request_count, success_at_10 and mrr_at_10.
+        Misses contribute zero to both metrics and remain in the denominator.
+        With no requests, both metrics are None.
+    """
+
+    request_count = len(scores)
+    hit_count = sum(hit for hit, _ in scores)
+    reciprocal_rank_sum = sum(rr for _, rr in scores)
+
+    success_at_10 = hit_count / request_count if request_count else None
+    mrr_at_10 = reciprocal_rank_sum / request_count if request_count else None
+
+    return {
+        "request_count": request_count,
+        "success_at_10": success_at_10,
+        "mrr_at_10": mrr_at_10,
+    }
