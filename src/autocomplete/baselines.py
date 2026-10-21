@@ -1,6 +1,4 @@
-from autocomplete.catalog import (
-    find_prefix_matches
-)
+from autocomplete.catalog import find_prefix_matches
 
 
 def suggest_popular(
@@ -31,10 +29,13 @@ def suggest_popular(
 
     if k <= 0:
         raise ValueError("k must be greater than zero")
-    
-    prefix_matches = sorted(find_prefix_matches(catalog, prefix), key=lambda term: (-counts[term], term))
-    
+
+    prefix_matches = sorted(
+        find_prefix_matches(catalog, prefix), key=lambda term: (-counts[term], term)
+    )
+
     return prefix_matches[:k]
+
 
 if __name__ == "__main__":
     CATALOG = {"cat bed", "cat food", "cat toy", "dog food"}
@@ -44,9 +45,11 @@ if __name__ == "__main__":
         "cat toy": 5,
         "dog food": 20,
     }
-    print(suggest_popular(
-        catalog=CATALOG,
-        counts=COUNTS,
-        prefix="dog",
-        k=2,
-    ))
+    print(
+        suggest_popular(
+            catalog=CATALOG,
+            counts=COUNTS,
+            prefix="dog",
+            k=2,
+        )
+    )

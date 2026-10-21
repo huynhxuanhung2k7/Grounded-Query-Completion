@@ -1,0 +1,31 @@
+{
+  "counts": {
+    "development_cases": 3918,
+    "quarantine": 10,
+    "source": 20000,
+    "train": 16072
+  },
+  "cutoff": "2023-09-25T00:00:00",
+  "dataset": {
+    "name": "amazon/AmazonQAC",
+    "revision": "975cbfac4623ffb054c59631e06e39d0831e47fb"
+  },
+  "development_prefix_seed": 42,
+  "hashes": {
+    "development_cases SHA-256": "6e3c8da5dc43a490a022281a269359b613db4d9c84c4203f98670653a2034f36",
+    "raw_file SHA-256": "c2e0eeb0b26cf91cecf93aadb3eb4c94a82ef1d21a296caadfd0c237dee84644"
+  },
+  "normalization_version": "nfkc-casefold-whitespace-v1",
+  "quarantine_reasons": {
+    "reversed_time": 10
+  },
+  "shard": {
+    "per_shard capacity": 5000,
+    "shard_index": [
+      0,
+      6,
+      13,
+      19
+    ]
+  }
+}

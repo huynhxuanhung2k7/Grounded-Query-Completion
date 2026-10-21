@@ -1,5 +1,6 @@
 from autocomplete.catalog import build_catalog, count_history_terms, find_prefix_matches
 
+
 def test_build_catalog_normalizes_and_deduplicates() -> None:
     records = [
         {"final_search_term": "  Wireless   Mouse "},
@@ -27,8 +28,7 @@ def test_build_catalog_handles_empty_input() -> None:
 
 def test_build_catalog_accepts_single_pass_iterator() -> None:
     records = (
-        {"final_search_term": term}
-        for term in ["Keyboard", "  KEYBOARD  ", "Mouse"]
+        {"final_search_term": term} for term in ["Keyboard", "  KEYBOARD  ", "Mouse"]
     )
 
     assert build_catalog(records) == {"keyboard", "mouse"}
@@ -41,6 +41,7 @@ def test_build_catalog_preserves_meaningful_punctuation() -> None:
     ]
 
     assert build_catalog(records) == {"c++", "c#"}
+
 
 def test_count_history_terms_counts_repeated_interactions() -> None:
     records = [
@@ -81,15 +82,13 @@ def test_count_history_terms_handles_empty_input() -> None:
 
 
 def test_count_history_terms_accepts_single_pass_iterator() -> None:
-    records = (
-        {"final_search_term": term}
-        for term in ["Mouse", " mouse ", "Keyboard"]
-    )
+    records = ({"final_search_term": term} for term in ["Mouse", " mouse ", "Keyboard"])
 
     assert count_history_terms(records) == {
         "mouse": 2,
         "keyboard": 1,
     }
+
 
 def test_count_history_terms_preserves_distinct_punctuation() -> None:
     records = [
@@ -115,6 +114,7 @@ def test_count_history_terms_ignores_supplied_popularity() -> None:
         "mouse": 2,
         "keyboard": 1,
     }
+
 
 def test_find_prefix_matches_returns_matching_full_terms() -> None:
     catalog = {"wireless mouse", "wireless keyboard", "mouse pad"}

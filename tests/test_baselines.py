@@ -2,7 +2,6 @@ import pytest
 
 from autocomplete.baselines import suggest_popular
 
-
 CATALOG = {"cat bed", "cat food", "cat toy", "dog food"}
 COUNTS = {
     "cat bed": 2,
@@ -50,31 +49,40 @@ def test_suggest_popular_normalizes_prefix() -> None:
 
 
 def test_suggest_popular_returns_empty_when_no_matches() -> None:
-    assert suggest_popular(
-        catalog=CATALOG,
-        counts=COUNTS,
-        prefix="phone",
-        k=10,
-    ) == []
+    assert (
+        suggest_popular(
+            catalog=CATALOG,
+            counts=COUNTS,
+            prefix="phone",
+            k=10,
+        )
+        == []
+    )
 
 
 def test_suggest_popular_handles_empty_catalog() -> None:
-    assert suggest_popular(
-        catalog=set(),
-        counts={},
-        prefix="cat",
-        k=10,
-    ) == []
+    assert (
+        suggest_popular(
+            catalog=set(),
+            counts={},
+            prefix="cat",
+            k=10,
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize("prefix", ["", "   ", "\t\n"])
 def test_suggest_popular_handles_empty_normalized_prefix(prefix: str) -> None:
-    assert suggest_popular(
-        catalog=CATALOG,
-        counts=COUNTS,
-        prefix=prefix,
-        k=10,
-    ) == []
+    assert (
+        suggest_popular(
+            catalog=CATALOG,
+            counts=COUNTS,
+            prefix=prefix,
+            k=10,
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize("k", [True, False, 1.5, "10", None])

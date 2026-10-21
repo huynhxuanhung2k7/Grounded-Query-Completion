@@ -1,6 +1,9 @@
+from dataclasses import asdict
+
 import pytest
 
-from autocomplete.evaluation import score_case, summarize_scores
+from autocomplete.data import DevelopmentCase
+from autocomplete.evaluation import evaluate_popularity, score_case, summarize_scores
 
 
 @pytest.mark.parametrize(
@@ -27,12 +30,15 @@ def test_score_case(
     assert hit is expected[0]
     assert reciprocal_rank == pytest.approx(expected[1])
 
+
 def test_summarize_scores_mixed_results() -> None:
-    result = summarize_scores([
-        (True, 1.0),
-        (True, 0.5),
-        (False, 0.0),
-    ])
+    result = summarize_scores(
+        [
+            (True, 1.0),
+            (True, 0.5),
+            (False, 0.0),
+        ]
+    )
 
     assert result["request_count"] == 3
     assert result["success_at_10"] == pytest.approx(2 / 3)
@@ -68,4 +74,94 @@ def test_summarize_scores_empty_input() -> None:
         "request_count": 0,
         "success_at_10": None,
         "mrr_at_10": None,
+    }
+
+
+def test_evaluate_popularity_preserves_rows_and_summarizes() -> None:
+    cases = [
+        DevelopmentCase(
+            query_id=202,
+            prefix_index=1,
+            raw_prefix="  CAT",
+            normalized_prefix="cat",
+            raw_final_search_term="Cat Food",
+            normalized_final_search_term="cat food",
+        ),
+        DevelopmentCase(
+            query_id=101,
+            prefix_index=0,
+            raw_prefix="phone",
+            normalized_prefix="phone",
+            raw_final_search_term="Phone Case",
+            normalized_final_search_term="phone case",
+        ),
+    ]
+
+    result = evaluate_popularity(
+        catalog={"cat food", "cat toy"},
+        counts={"cat food": 3, "cat toy": 5},
+        cases=cases,
+    )
+
+    assert result["results"] == [
+        {
+            **asdict(cases[0]),
+            "suggestions": ["cat toy", "cat food"],
+            "hit_at_10": True,
+            "reciprocal_rank_at_10": 0.5,
+        },
+        {
+            **asdict(cases[1]),
+            "suggestions": [],
+            "hit_at_10": False,
+            "reciprocal_rank_at_10": 0.0,
+        },
+    ]
+    assert result["summary"] == {
+        "request_count": 2,
+        "success_at_10": 0.5,
+        "mrr_at_10": 0.25,
+    }
+
+
+def test_evaluate_popularity_handles_empty_cases() -> None:
+    assert evaluate_popularity(
+        catalog={"cat food"},
+        counts={"cat food": 3},
+        cases=[],
+    ) == {
+        "results": [],
+        "summary": {
+            "request_count": 0,
+            "success_at_10": None,
+            "mrr_at_10": None,
+        },
+    }
+
+
+def test_evaluate_popularity_limits_suggestions_to_ten() -> None:
+    terms = [f"item {i:02d}" for i in range(11)]
+    case = DevelopmentCase(
+        query_id=1,
+        prefix_index=0,
+        raw_prefix="item",
+        normalized_prefix="item",
+        raw_final_search_term="item 10",
+        normalized_final_search_term="item 10",
+    )
+
+    result = evaluate_popularity(
+        catalog=set(terms),
+        counts={term: 11 - i for i, term in enumerate(terms)},
+        cases=[case],
+    )
+
+    [row] = result["results"]
+    assert row["suggestions"] == terms[:10]
+    assert row["hit_at_10"] is False
+    assert row["reciprocal_rank_at_10"] == 0.0
+    assert result["summary"] == {
+        "request_count": 1,
+        "success_at_10": 0.0,
+        "mrr_at_10": 0.0,
     }

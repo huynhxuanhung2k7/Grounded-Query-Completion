@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
+from autocomplete.normalization import normalize_prefix, normalize_term
 
-from autocomplete.normalization import normalize_term, normalize_prefix
 
 def build_catalog(
     history_records: Iterable[dict[str, object]],
@@ -22,7 +22,7 @@ def build_catalog(
         This function does not perform chronological partitioning or count
         repeated interactions.
     """
-    catalog: str = set()
+    catalog = set()
     for record in history_records:
         final_search_term = record["final_search_term"]
         term = normalize_term(final_search_term)
@@ -31,6 +31,7 @@ def build_catalog(
         catalog.add(term)
 
     return catalog
+
 
 def count_history_terms(
     history_records: Iterable[dict[str, object]],
@@ -60,6 +61,7 @@ def count_history_terms(
 
     return counts
 
+
 def find_prefix_matches(
     catalog: set[str],
     prefix: str,
@@ -83,7 +85,4 @@ def find_prefix_matches(
     if not normalized_prefix:
         return []
 
-    return sorted(
-        term for term in catalog
-        if term.startswith(normalized_prefix)
-    )
+    return sorted(term for term in catalog if term.startswith(normalized_prefix))
