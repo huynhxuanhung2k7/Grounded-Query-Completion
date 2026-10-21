@@ -8,8 +8,9 @@ This project investigates grounded query autocomplete for e-commerce search. Giv
 partially typed product query, the planned system will generate and rank up to ten completed
 searches. Its central experiment compares the same character-level neural model in two modes:
 a free mode that may generate previously unseen queries, and a grounded mode that only shows
-queries supported by a historical search catalog. Popularity and character n-gram systems
-will provide simpler comparison baselines.
+queries supported by a historical search catalog. Historical popularity, character n-gram
+generation and static-catalog neural ranking provide distinct comparison baselines.
+Catalog size will be varied independently of the neural-training sample.
 
 The project uses the [AmazonQAC dataset](https://huggingface.co/datasets/amazon/AmazonQAC),
 which contains real query prefixes, final search terms, timestamps, sessions, and popularity
@@ -27,19 +28,52 @@ may also remove useful new completions or return too few suggestions. This proje
 > response time of character-based query autocomplete?
 
 Here, *grounded* means that a displayed suggestion is present in a catalog built only from
-the training partition. It does not mean that a suggestion is factually correct, safe, or
+eligible earlier interactions. That historical source can be larger than the sample used
+to train the neural model. It does not mean that a suggestion is factually correct, safe, or
 linked to an available product.
 
 ## Current status
 
-The project is under active development. The current implementation focuses on repository
-setup and data preparation:
+The project is under active development. Data preparation and the first popularity
+development evaluation are implemented:
 
 - a bounded 20,000-record AmazonQAC sample has been acquired from four pinned source shards;
+- whole-record partitioning and fixed development-case preparation exist;
+- the verified local split is 16,072 training, 3,918 development and 10 quarantined records.
+- historical catalog construction, occurrence counts, prefix lookup and popularity ranking work;
+- per-request scoring, batch Success@10/MRR@10 and a hash-verified evaluation runner work.
 
-The baseline recommenders, neural model, decoding, shared evaluation, and command-line
-autocomplete demo described below are planned work. The repository does not yet provide a
-complete suggestion system or experimental results.
+The n-gram, neural model, static neural ranking, decoding, complete serving contract and
+interactive autocomplete demo remain planned work. The measured popularity rehearsal below
+is development evidence, not a completed five-system comparison or an official-test result.
+
+### Verified H_0 popularity rehearsal
+
+On 21 October 2026, an independent reconstruction checked all 3,918 saved prediction rows,
+their recorded scores and the source/manifest hashes. H_0 contains the 16,072 eligible
+earlier interactions and its catalog has 15,266 distinct normalized terms.
+
+| Measure | Result |
+|---|---|
+| Development requests | 3,918 |
+| Top-ten hits | 187 |
+| Success@10 | 4.772843% |
+| MRR@10 | 0.03410014 |
+| Catalog-member answers | 303 / 3,918 (7.7335%) |
+| Requests receiving suggestions (independent output audit) | 1,928 / 3,918 (49.2088%) |
+| Fill rate (independent output audit) | 13,996 / 39,180 (35.7223%) |
+
+The ranking and metric calculations are correct for this bounded sample. The low catalog
+membership limits historical lookup even before prefix compatibility and ranking are
+considered. This motivates the planned larger eligible-history pilot while keeping model
+training and development cases fixed; it does not establish that expansion will improve
+results. Popularity ignores the supplied full-source popularity values and never uses
+development answers to construct its catalog or counts.
+
+Response coverage and fill rate above were calculated from saved predictions during review;
+the runner currently saves only request count, Success@10 and MRR@10 in its summary.
+Latency, uncertainty, shared length-limit/error contracts and the other systems still need
+implementation or verification before the final comparison.
 
 ## Dataset
 
@@ -51,9 +85,24 @@ hardware.
 The current local sample contains 20,000 September 2023 interactions selected as 5,000 records
 from each of four fixed shards. This sample is intended for building, debugging, and evaluating
 the first end-to-end development prototype; it is not necessarily the final training scale.
-After profiling memory use, runtime, acquisition cost, and date coverage, the project may scale
-the bounded source sample to **up to 300,000 interactions** for final model training. The exact
-size will be selected from measured feasibility rather than assumed in advance.
+Two data budgets are planned separately. The neural/n-gram training sample stays manageable;
+a later model-data experiment may expand its source toward 300,000 interactions after
+profiling. A historical-catalog experiment instead keeps the neural model fixed and streams
+more eligible earlier interactions to collect distinct phrases and occurrence counts.
+Working history targets are the existing 16,072 interactions, then 100,000 and 1,000,000
+eligible interactions, subject to acquisition/memory limits. The larger targets have not
+been acquired and are not requirements for the first prototype.
+
+The chronological boundary is 25 September 2023 at 00:00. Both model training and historical
+catalog sources must precede it while the fixed 25–30 September development cases guide
+choices. The released [official test](https://huggingface.co/datasets/amazon/AmazonQAC/tree/main/test)
+covers 1–14 October 2023 and is reserved for final evaluation of frozen configurations.
+No later-October dataset is assumed.
+
+The current small catalog has 15,266 normalized phrases. Only 303 of the 3,918 development
+answers are members (7.73%). This is a data-coverage diagnostic, not model accuracy. Report
+it again for every catalog size, along with prefix compatibility and generation/ranking
+failures; keep overall and seen/unseen results visible.
 
 Raw data is deliberately excluded from version control. Acquisition settings and source
 revision are recorded in
@@ -70,35 +119,52 @@ The planned experiment has five main stages:
 1. **Prepare the data.** Validate the AmazonQAC schema, normalize Unicode and whitespace while
    preserving meaningful punctuation, create chronological partitions, and record a
    reproducible data manifest.
-2. **Build simple baselines.** Rank compatible historical queries by training-partition
-   popularity and implement a character n-gram model.
+2. **Build comparison baselines.** Rank compatible catalog queries by historical-source
+   frequency and implement a character n-gram on the model-training sample. Once the neural
+   model exists, add static-catalog ranking with its suffix/EOS probabilities.
 3. **Train a character model.** Train a small fixed-context neural network to predict the next
    character, including the end of a query.
-4. **Generate suggestions.** Decode completions from the same neural candidate pool in free
-   and exact-grounded modes so that the effect of grounding can be isolated.
+4. **Generate and rank suggestions.** Decode completions from the same neural candidate pool
+   in free and exact-grounded modes. The static neural baseline scores existing compatible
+   catalog phrases directly, without beam generation.
 5. **Evaluate the systems.** Compare Success@10, MRR@10, response coverage, fill rate,
    out-of-catalog rate, candidate recall, and request latency. Results will also be examined by
    catalog reachability, prefix compatibility, prefix length, and other relevant slices.
 
 The first goal is a small, reproducible end-to-end prototype using the current 20,000-record
-sample. Once that pipeline works and its resource costs are measured, final training may use a
-larger bounded sample of up to 300,000 source interactions. Any later improvement will be
-motivated by observed development failures and tested as a controlled change before the final
-evaluation is run.
+sample. The planned studies compare systems/filtering, historical-catalog sizes at fixed
+model and generated pools, and candidate budgets at fixed model/catalog. These are future
+experiments, not results. Any later model-training expansion is a separate change. Choose
+configurations using September development data and freeze them before official evaluation.
 
 ## Planned final system
 
 The completed prototype will provide a terminal interface that accepts a partial product query
-and returns up to ten ranked suggestions. It will expose four systems through a shared
+and returns up to ten ranked suggestions. It will expose five systems through a shared
 evaluation contract:
 
 - popularity lookup;
 - character n-gram completion;
+- static-catalog neural ranking of existing phrases;
 - neural free generation; and
 - neural generation with exact catalog grounding.
 
 The finished project will also save reloadable model and data artifacts, reproducible
 per-request evaluation results, latency measurements, and representative failure cases.
+The additional static baseline is our working interpretation of the TA's wording:
+popularity already ranks a fixed catalog by frequency, so this baseline instead ranks
+that catalog with the same neural model. Its exact meaning should be confirmed at the next
+tutor discussion. Reference scoring is exhaustive over eligible matches; any shortlist
+must be labelled separately and report its candidate-recall limitation.
+
+The working quality aim is a five-percentage-point absolute Success@10 gain over popularity,
+supported by paired uncertainty and subgroup analysis. Also compare neural generation with
+n-gram generation. Exact membership is an engineering check; recommendation usefulness
+requires quality, availability and latency evidence. These are planning aims, not scores.
+
+H2 may submit the modular project through the coordinator-approved GitHub ZIP/link route.
+The notebook/report can explain and reproduce its evidence with two or more meaningful
+experiments and referenced visualisations. Template placeholders do not cap project scope.
 Typo correction, semantic retrieval, session-aware recommendations, and a browser interface
 are possible future extensions rather than requirements of the initial prototype.
 
@@ -124,9 +190,26 @@ uv sync
 uv run pytest
 ```
 
-The suite currently covers package import, training-record validation, and normalization.
-Because normalization is active work, the current branch may contain failing tests that define
-the next behavior to implement.
+The existing suite covers package import, record validation, normalization, chronological
+partitioning, development-case preparation/persistence, catalog/count construction, prefix
+matching, popularity ranking and per-request/batch evaluation. Neural model and decoder
+behavior remain to be implemented and verified.
+
+### Run the popularity development evaluation
+
+With the cached sample and prepared cases available, run from the project directory:
+
+```bash
+uv run python -m scripts.evaluate_popularity
+```
+
+The runner verifies the raw Parquet and saved cases against
+`datasets/amazonqac/manifest_20k.v2.json`, builds catalog/counts from the earlier partition,
+and saves `artifacts/popularity_h0/development_results.json`. Results contain the run ID,
+manifest fingerprint, every original case with predictions/scores, and a summary. An
+identical second run reuses the file; conflicting content is rejected without overwrite.
+Raw/processed data, generated artifacts, caches and machine-specific files stay out of Git.
+Manifests and the unexecuted EDA notebook can be committed for reproducibility.
 
 ### Run the current entry point
 
@@ -166,9 +249,9 @@ project/
 
 ## Limitations
 
-- The 300,000-record subset is bounded and is not assumed to represent all Amazon search
-  traffic.
-- Exact grounding cannot return a correct query that is absent from the training catalog, and
+- The acquired 20,000-record subset is bounded and is not assumed to represent all Amazon
+  search traffic. Larger model/history sizes are plans subject to profiling.
+- Exact grounding cannot return a correct query that is absent from the historical catalog, and
   it may reduce the number of available suggestions.
 - The initial character model only extends a prefix; it is not designed to correct spelling or
   recover arbitrary query rewrites.
@@ -182,8 +265,9 @@ project/
 
 ## Future development
 
-After the core prototype is complete, possible extensions include larger data experiments,
-retrieval-first grounded ranking, typo correction, richer neural architectures, session
+After the core prototype is complete, planned studies examine catalog size and candidate
+budgets. Further possible extensions include neural-training scale, explicitly shortlisted
+catalog ranking, typo correction, richer neural architectures, session
 context, content-policy checks, and a user-facing interface. These will be treated as separate
 experiments so that their costs and effects can be measured rather than assumed.
 

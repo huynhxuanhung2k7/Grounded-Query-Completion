@@ -7,7 +7,7 @@ REVISION = "975cbfac4623ffb054c59631e06e39d0831e47fb"
 SHARD_INDICES = (0, 6, 13, 19)
 ROW_PER_SHARD = 5_000
 
-OUTPUT = Path("datasets/amazonqac/raw/train_sample_20k.parquet")
+RAW_DATA = Path("datasets/amazonqac/raw/train_sample_20k.parquet")
 TEMP_OUTPUT = Path("datasets/amazonqac/raw/train_sample_20k.tmp.parquet")
 
 SHARD_SUFFIX = "1d4931ef-16a0-4dc1-8034-ddaa3f7ddec6-c000.snappy.parquet"
@@ -32,8 +32,8 @@ def stream_one_shard(shard_url: str):
 
 
 def main():
-    if OUTPUT.exists():
-        raise FileExistsError(f"Refusing to overwrite existing sample: {OUTPUT}")
+    if RAW_DATA.exists():
+        raise FileExistsError(f"Refusing to overwrite existing sample: {RAW_DATA}")
 
     all_rows = []
 
@@ -53,11 +53,11 @@ def main():
     print(f"Total: {len(all_rows)}")
 
     # save them
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    RAW_DATA.parent.mkdir(parents=True, exist_ok=True)
 
     dataset = Dataset.from_list(all_rows)
-    dataset.to_parquet(OUTPUT)
-    print(f"Saved {len(dataset)} rows to {OUTPUT}")
+    dataset.to_parquet(RAW_DATA)
+    print(f"Saved {len(dataset)} rows to {RAW_DATA}")
 
 
 if __name__ == "__main__":
