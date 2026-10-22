@@ -58,9 +58,7 @@ class CharVocabulary:
             characters.append(self.id_to_token[token_id])
         return "".join(characters)
 
-
 def main() -> None:
-    """Demonstrate stable IDs, a round trip and unknown-character handling."""
     training_terms = ["cat", "car", "cat"]
     vocab = CharVocabulary(training_terms)
 
@@ -81,7 +79,6 @@ def main() -> None:
 
     print(f"Special IDs: PAD={PAD_ID}, UNK={UNK_ID}, EOS={EOS_ID}")
     print("Encoding adds neither padding nor EOS; windows will handle those.")
-
-
+    
 if __name__ == "__main__":
     main()
