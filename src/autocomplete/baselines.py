@@ -1,5 +1,8 @@
 from autocomplete.catalog import find_prefix_matches
-
+from autocomplete.contract import (
+    is_compatible_completion,
+    prepare_prefix
+)
 
 def suggest_popular(
     catalog: set[str],
@@ -30,11 +33,19 @@ def suggest_popular(
     if k <= 0:
         raise ValueError("k must be greater than zero")
 
-    prefix_matches = sorted(
-        find_prefix_matches(catalog, prefix), key=lambda term: (-counts[term], term)
-    )
+    normalized, reason = prepare_prefix(prefix)
+    if reason is not None:
+        return []
+    
+    eligible = [
+        term 
+        for term in find_prefix_matches(catalog, prefix)
+        if is_compatible_completion(normalized, term)
+    ]
+    
+    ranked = sorted(eligible, key=lambda term: (-counts[term], term))
 
-    return prefix_matches[:k]
+    return ranked[:k]
 
 
 if __name__ == "__main__":
