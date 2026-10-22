@@ -14,6 +14,7 @@ from pathlib import Path
 from autocomplete.catalog import build_catalog, count_history_terms
 from autocomplete.data import DevelopmentCase, partition_record
 from autocomplete.evaluation import evaluate_popularity
+from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
 from datasets import Dataset
 from scripts.prepare_data import MANIFEST, OUTPUT
 from scripts.probe_amazonqac import RAW_DATA
@@ -75,13 +76,21 @@ def main() -> None:
     print(isinstance(cases[0], DevelopmentCase))
 
     evaluation = evaluate_popularity(catalog, count_history, cases)
+    
+    run_id = "popularity_h0_contract_v1"
     artifact = {
-        "run_id": "popularity_h0",
+        "run_id": run_id,
         "manifest_sha256": hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
+        "serving_policy": {
+            "version": "contract-v1",
+            "max_input_length": MAX_INPUT_LENGTH,
+            "max_added_length": MAX_ADDED_LENGTH,
+            "k": 10,
+        },
         **evaluation,
     }
 
-    result_path = Path("artifacts/popularity_h0/development_results.json")
+    result_path = Path("artifacts") / run_id / "development_results.json"
     payload = json.dumps(
         artifact,
         sort_keys=True,

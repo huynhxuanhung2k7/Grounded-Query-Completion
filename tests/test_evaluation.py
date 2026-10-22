@@ -109,12 +109,14 @@ def test_evaluate_popularity_preserves_rows_and_summarizes() -> None:
             "suggestions": ["cat toy", "cat food"],
             "hit_at_10": True,
             "reciprocal_rank_at_10": 0.5,
+            "stop_reason": None,
         },
         {
             **asdict(cases[1]),
             "suggestions": [],
             "hit_at_10": False,
             "reciprocal_rank_at_10": 0.0,
+            "stop_reason": "no_candidates",
         },
     ]
     assert result["summary"] == {

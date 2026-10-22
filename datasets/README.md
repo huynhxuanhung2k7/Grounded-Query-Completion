@@ -18,6 +18,17 @@ Start with H_0=T (16,072 interactions); larger history targets of 100,000 and 1,
 eligible interactions are future cost-dependent acquisitions, not files already present.
 Do not expand the model vocabulary or retrain weights during the catalog-size study.
 
+Local acquisition retained on 2026-10-21: four JSONL files under
+`amazonqac/raw/history_profile/975cbfac4623ffb054c59631e06e39d0831e47fb/`,
+containing the first 10,000 source rows from each of train shards 0, 6, 13 and 19
+at that pinned revision (40,000 source rows total). Their adjacent metadata files
+retain source URLs, row limits/counts and SHA-256 hashes. All four hashes and row
+counts were independently checked. These are unfiltered source rows, overlap the
+original 20K sample, and are not 40,000 additional eligible historical interactions.
+The original sample, T, D and baseline catalog remain unchanged. The optional
+download utility and operational logs were retired after acquisition; no downloader
+is required for using these local files. Keep the small provenance metadata.
+
 Both sources use valid complete interactions before 25 September 2023 at 00:00 while
 the existing 3,918 later-September development cases remain fixed. Ten reversed-time source
 records are quarantined. The separate official test covers 1–14 October 2023 and stays

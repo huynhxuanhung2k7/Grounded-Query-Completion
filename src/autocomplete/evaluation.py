@@ -4,6 +4,7 @@ from dataclasses import asdict
 
 from autocomplete.baselines import suggest_popular
 from autocomplete.data import DevelopmentCase
+from autocomplete.contract import prepare_prefix
 
 
 def score_case(suggestions: list[str], normalized_truth: str) -> tuple[bool, float]:
@@ -87,15 +88,29 @@ def evaluate_popularity(
     result = []
     scores = []
     for case in cases:
-        suggestions = suggest_popular(catalog, counts, case.normalized_prefix, k=10)
+        normalized_prefix, stop_reason = prepare_prefix(case.normalized_prefix)
+        
+        if stop_reason is not None:
+            suggestions = []
+        else:
+            suggestions = suggest_popular(
+                catalog, counts, normalized_prefix, k=10
+            )
+            if not suggestions:
+                stop_reason = "no_candidates"
+                
+
         hit, rr = score_case(suggestions, case.normalized_final_search_term)
-        row = {
-            **asdict(case),
-            "suggestions": suggestions,
-            "hit_at_10": hit,
-            "reciprocal_rank_at_10": rr,
-        }
-        result.append(row)
+    
+        result.append(
+            {
+                **asdict(case),
+                "suggestions": suggestions,
+                "hit_at_10": hit,
+                "reciprocal_rank_at_10": rr,
+                "stop_reason": stop_reason
+            }
+        )
         scores.append((hit, rr))
 
     return {"results": result, "summary": summarize_scores(scores)}
