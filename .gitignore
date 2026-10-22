@@ -6,7 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 
-# Downloaded source data stays local; manifests and documentation may be tracked.
+# Downloaded source data stays local
 datasets/amazonqac/raw/
 datasets/amazonqac/processed/
 artifacts/
