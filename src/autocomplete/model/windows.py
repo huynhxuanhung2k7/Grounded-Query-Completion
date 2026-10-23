@@ -12,13 +12,13 @@ from autocomplete.model.vocabulary import (
     CharVocabulary,
 )
 
-
 class NextCharacterDataset(Dataset):
     def __init__(
         self,
         normalized_terms: Iterable[str],
         vocabulary: CharVocabulary,
         context_length: int = 32,
+        allow_unknown: bool = False,
     ):
         if context_length < 1:
             raise ValueError("context_length must be positive")
@@ -35,9 +35,9 @@ class NextCharacterDataset(Dataset):
             if not encoded:
                 continue
 
-            if UNK_ID in encoded:
+            if UNK_ID in encoded and not allow_unknown:
                 raise ValueError(
-                    "Training characters must exist in the T vocabulary"
+                    "Training characters must exist in the vocabulary"
                 )
 
             self.encoded_terms.append(encoded)
@@ -58,22 +58,22 @@ class NextCharacterDataset(Dataset):
 
         # Locate the interaction containing this example.
         term_index = bisect_right(self.ends, index)
+        encoded_chosen_word = self.encoded_terms[term_index]
 
         start = self.ends[term_index - 1] if term_index else 0
-        position = index - start
-        encoded = self.encoded_terms[term_index]
+        local_target_position = index - start
 
         # Only characters BEFORE the target enter the context.
-        context = encoded[
-            max(0, position - self.context_length):position
+        context = encoded_chosen_word[
+            max(0, local_target_position - self.context_length):local_target_position
         ]
 
         padding = [PAD_ID] * (self.context_length - len(context))
         context = padding + context
 
         target = (
-            encoded[position]
-            if position < len(encoded)
+            encoded_chosen_word[local_target_position]
+            if local_target_position < len(encoded_chosen_word)
             else EOS_ID
         )
 
