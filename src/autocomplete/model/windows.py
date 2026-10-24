@@ -12,6 +12,7 @@ from autocomplete.model.vocabulary import (
     CharVocabulary,
 )
 
+
 class NextCharacterDataset(Dataset):
     def __init__(
         self,

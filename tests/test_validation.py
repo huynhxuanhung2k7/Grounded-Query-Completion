@@ -6,7 +6,6 @@ from autocomplete.model.validation import evaluate
 from autocomplete.model.vocabulary import CharVocabulary
 from autocomplete.model.windows import NextCharacterDataset
 
-
 vocabulary = CharVocabulary(["cat"])
 model = NeuralCharModel(len(vocabulary))
 

@@ -1,19 +1,19 @@
 import hashlib
 import json
-from pathlib import Path
-from dataclasses import asdict
-
 from collections import Counter
-from autocomplete.normalization import NORMALIZATION_VERSION
-from autocomplete.data import DevelopmentCase, partition_record
-from autocomplete.normalization import normalize_term
-from autocomplete.evaluation import score_case, summarize_scores
+from dataclasses import asdict
+from pathlib import Path
+
 from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
+from autocomplete.data import DevelopmentCase, partition_record
+from autocomplete.evaluation import score_case, summarize_scores
 from autocomplete.ngram import NgramModel
+from autocomplete.normalization import NORMALIZATION_VERSION, normalize_term
 from datasets import Dataset
+from scripts.evaluate_popularity import verify_file_hash
 from scripts.prepare_data import MANIFEST, OUTPUT
 from scripts.probe_amazonqac import RAW_DATA
-from scripts.evaluate_popularity import verify_file_hash
+
 
 def main() -> None:
     manifest = json.loads(MANIFEST.read_bytes())

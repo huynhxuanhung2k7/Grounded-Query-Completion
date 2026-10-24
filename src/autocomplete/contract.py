@@ -3,6 +3,7 @@ MAX_ADDED_LENGTH = 64
 
 from autocomplete.normalization import normalize_prefix
 
+
 def prepare_prefix(raw_prefix: str) -> tuple[str, str | None]:
     """Normalize input and return an optional rejection reason."""
     normalized = normalize_prefix(raw_prefix)

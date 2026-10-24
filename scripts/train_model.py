@@ -1,29 +1,25 @@
-import math
 import hashlib
 import json
-from pathlib import Path
-from dataclasses import asdict
+import math
 import platform
+from pathlib import Path
 from time import perf_counter
 
 import torch
-from tqdm.auto import tqdm
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
+
+from autocomplete.data import partition_record
 from autocomplete.model.model import NeuralCharModel
+from autocomplete.model.training import train_one_epoch
+from autocomplete.model.validation import evaluate
 from autocomplete.model.vocabulary import CharVocabulary
 from autocomplete.model.windows import NextCharacterDataset
-from autocomplete.model.training import train_one_epoch
 from autocomplete.normalization import NORMALIZATION_VERSION, normalize_term
-from autocomplete.data import DevelopmentCase, partition_record
-from autocomplete.model.validation import evaluate
-
-from autocomplete.evaluation import score_case, summarize_scores
-from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
-
 from datasets import Dataset
+from scripts.evaluate_popularity import verify_file_hash
 from scripts.prepare_data import MANIFEST, OUTPUT
 from scripts.probe_amazonqac import RAW_DATA
-from scripts.evaluate_popularity import verify_file_hash
 
 
 def main() -> None:

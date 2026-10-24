@@ -12,9 +12,9 @@ import json
 from pathlib import Path
 
 from autocomplete.catalog import build_catalog, count_history_terms
+from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
 from autocomplete.data import DevelopmentCase, partition_record
 from autocomplete.evaluation import evaluate_popularity
-from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
 from datasets import Dataset
 from scripts.prepare_data import MANIFEST, OUTPUT
 from scripts.probe_amazonqac import RAW_DATA

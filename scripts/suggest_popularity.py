@@ -3,8 +3,8 @@ import json
 
 from autocomplete.baselines import suggest_popular
 from autocomplete.catalog import build_catalog, count_history_terms
-from autocomplete.data import partition_record
 from autocomplete.contract import MAX_INPUT_LENGTH, prepare_prefix
+from autocomplete.data import partition_record
 from datasets import Dataset
 from scripts.evaluate_popularity import verify_file_hash
 from scripts.prepare_data import MANIFEST

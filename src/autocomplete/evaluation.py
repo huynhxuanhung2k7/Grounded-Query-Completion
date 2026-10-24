@@ -3,8 +3,8 @@
 from dataclasses import asdict
 
 from autocomplete.baselines import suggest_popular
-from autocomplete.data import DevelopmentCase
 from autocomplete.contract import prepare_prefix
+from autocomplete.data import DevelopmentCase
 
 
 def score_case(suggestions: list[str], normalized_truth: str) -> tuple[bool, float]:

@@ -18,7 +18,7 @@ def train_one_epoch(
     running_loss = 0.0
     target_count = 0
 
-    for batch_idx, (contexts, targets) in enumerate(data_loader):
+    for (contexts, targets) in data_loader:
         contexts, targets = contexts.to(device), targets.to(device)
 
         optimizer.zero_grad()
@@ -43,14 +43,12 @@ def train_one_epoch(
 
 
 def main() -> None:
-    import math
 
     import torch
 
     from autocomplete.model.model import NeuralCharModel
-    from autocomplete.model.vocabulary import CharVocabulary, EOS_ID, UNK_ID, PAD_ID
+    from autocomplete.model.vocabulary import CharVocabulary
     from autocomplete.model.windows import NextCharacterDataset
-    from autocomplete.normalization import normalize_prefix
 
     torch.manual_seed(42)
 
@@ -78,15 +76,11 @@ def main() -> None:
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     loss_function = torch.nn.CrossEntropyLoss()
 
-    before = {
-        name: parameter.detach().clone() for name, parameter in model.named_parameters()
-    }
-
     report = train_one_epoch(model, data_loader, optimizer, loss_function)
     for _ in range(10):
         report = train_one_epoch(model, data_loader, optimizer, loss_function)
 
-    print("Epoch report:", report)
+    print("After train 1 epoch report:", report)
 
 
 if __name__ == "__main__":

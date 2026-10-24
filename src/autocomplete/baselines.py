@@ -1,8 +1,6 @@
 from autocomplete.catalog import find_prefix_matches
-from autocomplete.contract import (
-    is_compatible_completion,
-    prepare_prefix
-)
+from autocomplete.contract import is_compatible_completion, prepare_prefix
+
 
 def suggest_popular(
     catalog: set[str],

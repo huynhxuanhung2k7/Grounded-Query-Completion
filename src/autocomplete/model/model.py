@@ -1,5 +1,5 @@
-import torch
 from torch import Tensor, nn
+
 
 class NeuralCharModel(nn.Module):
     def __init__(
