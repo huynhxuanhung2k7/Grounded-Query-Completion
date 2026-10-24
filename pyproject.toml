@@ -8,6 +8,7 @@ dependencies = [
     "datasets>=5.0.1",
     "numpy>=2.4.6",
     "torch>=2.14.1",
+    "tqdm>=4.70.0",
 ]
 
 [dependency-groups]
