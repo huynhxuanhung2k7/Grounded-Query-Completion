@@ -6,9 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "datasets>=5.0.1",
-    "numpy>=2.4.6",
+    "optuna>=5.0.0",
     "torch>=2.14.1",
-    "tqdm>=4.70.0",
 ]
 
 [dependency-groups]

@@ -2,12 +2,7 @@ import math
 from collections import Counter
 from collections.abc import Iterable
 
-from autocomplete.contract import (
-    MAX_ADDED_LENGTH,
-    is_compatible_completion,
-    prepare_prefix,
-)
-from autocomplete.normalization import normalize_term
+from autocomplete.decoding import greedy_complete
 
 EOS = "<EOS>"
 
@@ -80,86 +75,7 @@ class NgramModel:
         }
 
     def greedy_complete(self, raw_prefix: str) -> dict[str, object]:
-        """Extend a prefix until EOS, or return an explicit empty outcome."""
+        """using the shared decoding algorithm."""
         if not self.counts:
             raise ValueError("Call fit() before generating completions")
-
-        prefix, stop_reason = prepare_prefix(raw_prefix)
-
-        if stop_reason is not None:
-            return {
-                "completion": None,
-                "log_score": None,
-                "stop_reason": stop_reason,
-            }
-
-        text = prefix
-        log_score = 0.0
-
-        for added_length in range(MAX_ADDED_LENGTH + 1):
-            log_probs = self.next_log_probs(text)
-
-            token = min(
-                log_probs, key=lambda candidate: (-log_probs[candidate], candidate)
-            )
-
-            if token == EOS:
-                completion = normalize_term(text)
-
-                if not is_compatible_completion(prefix, completion):
-                    return {
-                        "completion": None,
-                        "log_score": None,
-                        "stop_reason": "no_candidates",
-                    }
-
-                return {
-                    "completion": completion,
-                    "log_score": log_score + log_probs[EOS],
-                    "stop_reason": "eos",
-                }
-
-            if added_length == MAX_ADDED_LENGTH:
-                return {
-                    "completion": None,
-                    "log_score": None,
-                    "stop_reason": "length_limit",
-                }
-
-            text += token
-            log_score += log_probs[token]
-
-        raise RuntimeError("Unreachable decoder state")
-
-
-if __name__ == "__main__":
-    training_terms = (
-        ["cat food"] * 6
-        + ["cat treats"] * 3
-        + ["cat litter"] * 2
-        + ["dog food"] * 5
-        + ["dog treats"] * 2
-        + ["wireless headphones"] * 5
-        + ["wireless mouse"] * 3
-        + ["wireless keyboard"] * 2
-        + ["usb cable"] * 4
-        + ["usb charger"] * 2
-    )
-
-    model = NgramModel()
-    model.fit(training_terms)
-
-    contexts = [
-        "cat ",  # Competing continuations: food, treats, litter
-        "dog ",  # Competing continuations: food, treats
-        "wireless ",  # Shared beginning, different products
-        "usb c",  # Cable versus charger
-        "xxcat ",  # Same final context as "cat "
-        "qqq",  # Unseen suffixes: fall back to unigram
-        "cat food",  # EOS should be likely
-    ]
-
-    from pprint import pprint
-
-    pprint(dict(model.counts))
-    print(model.greedy_complete("usb"))
+        return greedy_complete(raw_prefix, self.next_log_probs)

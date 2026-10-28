@@ -1,6 +1,6 @@
 import pytest
 
-from autocomplete.normalization import (
+from autocomplete.data.normalization import (
     _normalized_nfkc,
     normalize_prefix,
     normalize_term,

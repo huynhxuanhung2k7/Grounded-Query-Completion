@@ -1,6 +1,6 @@
 import pytest
 
-from autocomplete.baselines import suggest_popular
+from autocomplete.baseline.baselines import suggest_popular
 
 CATALOG = {"cat bed", "cat food", "cat toy", "dog food"}
 COUNTS = {

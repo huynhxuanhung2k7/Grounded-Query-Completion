@@ -1,6 +1,3 @@
-import subprocess
-import sys
-
 import pytest
 
 from autocomplete.model.vocabulary import (
@@ -11,7 +8,6 @@ from autocomplete.model.vocabulary import (
     UNK,
     UNK_ID,
     CharVocabulary,
-    main,
 )
 
 
@@ -126,28 +122,3 @@ def test_encode_returns_independent_lists() -> None:
     modified = vocab.encode("cat")
     modified.clear()
     assert vocab.encode("cat") == original
-
-
-def test_demo_explains_round_trip_and_unknown_character(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    main()
-    output = capsys.readouterr().out
-    assert "Known text: 'cat' -> [4, 3, 6] -> 'cat'" in output
-    assert "Unknown text: 'cap' -> [4, 3, 1] (p becomes UNK)" in output
-    assert "Expected decode rejection:" in output
-    assert "Special IDs: PAD=0, UNK=1, EOS=2" in output
-    assert "Encoding adds neither padding nor EOS" in output
-
-
-def test_demo_module_entrypoint() -> None:
-    completed = subprocess.run(
-        [sys.executable, "-B", "-m", "autocomplete.model.vocabulary"],
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=10,
-    )
-    assert "Vocabulary (7 tokens):" in completed.stdout
-    assert "Expected decode rejection:" in completed.stdout
-    assert completed.stderr == ""

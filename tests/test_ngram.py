@@ -3,8 +3,8 @@ from collections import Counter
 
 import pytest
 
+from autocomplete.baseline.ngram import EOS, NgramModel
 from autocomplete.contract import MAX_ADDED_LENGTH, MAX_INPUT_LENGTH
-from autocomplete.ngram import EOS, NgramModel
 
 
 @pytest.mark.parametrize("order", [0, -1, True, False, 1.5, "4"])
@@ -110,6 +110,21 @@ def test_greedy_score_covers_only_suffix_and_eos() -> None:
         "log_score": pytest.approx(expected),
         "stop_reason": "eos",
     }
+
+
+def test_ngram_greedy_uses_the_shared_decoder(monkeypatch) -> None:
+    model = NgramModel()
+    model.fit(["cat"])
+    expected = {"completion": "cat", "log_score": 0.0, "stop_reason": "eos"}
+
+    def shared(prefix, predict):
+        assert prefix == "ca"
+        assert predict == model.next_log_probs
+        return expected
+
+    # Patch the imported function to check delegation, not a second algorithm.
+    monkeypatch.setattr("autocomplete.baseline.ngram.greedy_complete", shared)
+    assert model.greedy_complete("ca") is expected
 
 
 def test_greedy_permits_immediate_eos() -> None:

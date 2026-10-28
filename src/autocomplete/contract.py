@@ -1,7 +1,7 @@
 MAX_INPUT_LENGTH = 256
 MAX_ADDED_LENGTH = 64
 
-from autocomplete.normalization import normalize_prefix
+from autocomplete.data.normalization import normalize_prefix
 
 
 def prepare_prefix(raw_prefix: str) -> tuple[str, str | None]:

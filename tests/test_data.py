@@ -15,7 +15,7 @@ from autocomplete.data import (
     validate_train_record,
     write_development_cases,
 )
-from autocomplete.normalization import (
+from autocomplete.data.normalization import (
     normalize_prefix,
     normalize_term,
 )

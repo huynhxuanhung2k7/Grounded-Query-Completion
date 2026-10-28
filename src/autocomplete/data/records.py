@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Final
 
-from autocomplete.normalization import normalize_prefix, normalize_term
+from autocomplete.data.normalization import normalize_prefix, normalize_term
 from datasets import Dataset
 
 CUTOFF = datetime.fromisoformat("2023-09-25 00:00:00")

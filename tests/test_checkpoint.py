@@ -6,15 +6,16 @@ from pathlib import Path
 import pytest
 import torch
 
+from autocomplete.data.normalization import NORMALIZATION_VERSION
+from autocomplete.model.checkpoint import load_checkpoint
 from autocomplete.model.model import NeuralCharModel
-from autocomplete.model.vocabulary import EOS, PAD, UNK
-from autocomplete.normalization import NORMALIZATION_VERSION
-from scripts.check_checkpoint import from_tokens, load_checkpoint, verify_checkpoint
+from autocomplete.model.vocabulary import EOS, PAD, UNK, CharVocabulary
+from autocomplete.predictors import load_predictor
 
 
 def test_from_tokens_preserves_saved_order_and_copies_input() -> None:
     tokens = [PAD, UNK, EOS, "z", "a", " "]
-    vocabulary = from_tokens(tokens)
+    vocabulary = CharVocabulary.from_tokens(tokens)
     assert vocabulary.encode("za ?") == [3, 4, 5, 1]
     assert vocabulary.decode([3, 4, 5]) == "za "
     tokens.append("q")
@@ -34,7 +35,7 @@ def test_from_tokens_preserves_saved_order_and_copies_input() -> None:
 )
 def test_from_tokens_rejects_invalid_saved_mapping(tokens, error) -> None:
     with pytest.raises(error):
-        from_tokens(tokens)
+        CharVocabulary.from_tokens(tokens)
 
 
 @pytest.fixture
@@ -114,7 +115,5 @@ def test_verification_rejects_changed_manifest_before_loading_data(
     torch.save(checkpoint, path)
     manifest = tmp_path / "manifest.json"
     manifest.write_bytes(b"changed manifest")
-    with pytest.raises(ValueError, match="manifest differs"):
-        verify_checkpoint(
-            path, manifest_path=manifest, raw_data_path=tmp_path / "missing.parquet"
-        )
+    with pytest.raises(ValueError, match="different manifest"):
+        load_predictor("neural", tmp_path / "missing.parquet", manifest, path)

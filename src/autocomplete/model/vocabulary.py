@@ -31,6 +31,31 @@ class CharVocabulary:
             token: token_id for token_id, token in enumerate(self.id_to_token)
         }
 
+    @classmethod
+    def from_tokens(cls, tokens: list[str]) -> "CharVocabulary":
+        """Restore the exact saved ordering, rather than rebuilding sorted IDs."""
+        if not isinstance(tokens, list):
+            raise TypeError("Saved tokens must be a list")
+
+        if any(not isinstance(token, str) for token in tokens):
+            raise TypeError("Every token must be a string")
+
+        if tokens[:3] != [PAD, UNK, EOS]:
+            raise ValueError("Expected PAD, UNK, EOS at IDs 0, 1, 2")
+
+        if len(set(tokens)) != len(tokens):
+            raise ValueError("Saved tokens must be unique")
+
+        characters = tokens[3:]
+        if not characters or any(len(token) != 1 for token in characters):
+            raise ValueError("Expected nonempty single-character vocabulary")
+
+        vocabulary = cls.__new__(cls)
+        vocabulary.id_to_token = list(tokens)
+        vocabulary.token_to_id = {token: token_id for token_id, token in enumerate(tokens)}
+
+        return vocabulary
+
     def __len__(self) -> int:
         """Return the number of characters plus the three special tokens."""
         return len(self.id_to_token)
@@ -57,28 +82,3 @@ class CharVocabulary:
                 raise ValueError("Special tokens cannot be decoded as characters")
             characters.append(self.id_to_token[token_id])
         return "".join(characters)
-
-def main() -> None:
-    training_terms = ["cat", "car", "cat"]
-    vocab = CharVocabulary(training_terms)
-
-    print(f"Training terms: {training_terms}")
-    print(f"Vocabulary ({len(vocab)} tokens): {vocab.token_to_id}")
-
-    known_text = "cat"
-    known_ids = vocab.encode(known_text)
-    print(f"Known text: {known_text!r} -> {known_ids} -> {vocab.decode(known_ids)!r}")
-
-    unknown_text = "cap"
-    unknown_ids = vocab.encode(unknown_text)
-    print(f"Unknown text: {unknown_text!r} -> {unknown_ids} (p becomes UNK)")
-    try:
-        vocab.decode(unknown_ids)
-    except ValueError as error:
-        print(f"Expected decode rejection: {error}")
-
-    print(f"Special IDs: PAD={PAD_ID}, UNK={UNK_ID}, EOS={EOS_ID}")
-    print("Encoding adds neither padding nor EOS; windows will handle those.")
-    
-if __name__ == "__main__":
-    main()

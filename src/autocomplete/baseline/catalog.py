@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from autocomplete.normalization import normalize_prefix, normalize_term
+from autocomplete.data.normalization import normalize_prefix, normalize_term
 
 
 def build_catalog(

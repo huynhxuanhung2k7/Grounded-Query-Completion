@@ -1,4 +1,4 @@
-from autocomplete.catalog import find_prefix_matches
+from autocomplete.baseline.catalog import find_prefix_matches
 from autocomplete.contract import is_compatible_completion, prepare_prefix
 
 
@@ -44,21 +44,3 @@ def suggest_popular(
     ranked = sorted(eligible, key=lambda term: (-counts[term], term))
 
     return ranked[:k]
-
-
-if __name__ == "__main__":
-    CATALOG = {"cat bed", "cat food", "cat toy", "dog food"}
-    COUNTS = {
-        "cat bed": 2,
-        "cat food": 5,
-        "cat toy": 5,
-        "dog food": 20,
-    }
-    print(
-        suggest_popular(
-            catalog=CATALOG,
-            counts=COUNTS,
-            prefix="dog",
-            k=2,
-        )
-    )
