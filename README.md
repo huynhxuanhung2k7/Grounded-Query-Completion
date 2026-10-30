@@ -1,4 +1,4 @@
-# Grounded Query Autocomplete
+# Query Autocomplete
 
 A FIT1061 prototype comparing popularity, character n-grams, catalog-neural ranking,
 free neural generation and catalog-filtered neural generation on AmazonQAC.
