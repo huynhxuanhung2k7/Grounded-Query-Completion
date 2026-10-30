@@ -7,6 +7,14 @@ from autocomplete.model.vocabulary import PAD_ID, UNK_ID
 
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader) -> dict[str, int | float | None]:
+    """Measure character loss without changing weights; skip UNK targets.
+
+    Args:
+        model: Character model.
+        loader: Validation context and target batches.
+    Returns:
+        Mean loss and known/unknown target counts.
+    """
     model.eval()
 
     device = next(model.parameters()).device

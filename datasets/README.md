@@ -53,6 +53,7 @@ eligible interactions. Its processed catalog has 80,136 eligible interactions / 
 terms and is the current lookup default. It does not enlarge neural/n-gram training.
 The older 40K source/catalog remains unchanged (32,005 eligible interactions / 29,516 terms).
 
-October is reserved for frozen final evaluation. A prior exploratory probe exposed the
-first 100 requests; preparation retains those IDs rather than treating them as untouched.
-For the full split rules see [PROJECT_CONTEXT.md](../../PROJECT_CONTEXT.md#3-data-contract-and-acquisition).
+October has already been evaluated. Further runs are known-benchmark reevaluations,
+not a fresh untouched test. Keep all supplied requests and choose settings on September
+development data. Training/history eligibility is determined by interaction timestamps
+around the September 25 cutoff, not the Hugging Face loader's generic `train` label.

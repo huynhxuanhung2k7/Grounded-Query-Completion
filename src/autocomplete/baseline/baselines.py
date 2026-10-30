@@ -8,22 +8,15 @@ def suggest_popular(
     prefix: str,
     k: int = 10,
 ) -> list[str]:
-    """Return up to k prefix-compatible catalog terms ranked by historical count.
+    """Rank prefix matches by count, breaking ties alphabetically.
 
     Args:
-        catalog: Nonempty, normalized historical search terms.
-        counts: Historical interaction counts for every term in the catalog.
-        prefix: Raw typed prefix, normalized by the prefix lookup function.
-        k: Maximum number of suggestions; must be a positive integer, excluding bool.
-
+        catalog: Normalized historical terms.
+        counts: Interaction count per term.
+        prefix: Raw typed prefix.
+        k: Maximum number of suggestions.
     Returns:
-        Matching full terms ranked by descending count, with lexical tie-breaking.
-        Returns fewer than k terms when fewer matches exist, or an empty list for
-        an empty normalized prefix or no matches.
-
-    Raises:
-        TypeError: If k is not an integer or is a boolean.
-        ValueError: If k is zero or negative.
+        Up to k compatible full queries.
     """
     if type(k) is not int:
         raise TypeError("k must be an integer")
@@ -32,15 +25,16 @@ def suggest_popular(
         raise ValueError("k must be greater than zero")
 
     normalized, reason = prepare_prefix(prefix)
+
     if reason is not None:
         return []
-    
+
     eligible = [
-        term 
+        term
         for term in find_prefix_matches(catalog, prefix)
         if is_compatible_completion(normalized, term)
     ]
-    
+
     ranked = sorted(eligible, key=lambda term: (-counts[term], term))
 
     return ranked[:k]

@@ -10,3 +10,4 @@ __pycache__/
 datasets/amazonqac/raw/
 datasets/amazonqac/processed/
 artifacts/
+AI_USE.md

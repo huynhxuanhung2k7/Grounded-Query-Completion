@@ -1,4 +1,4 @@
-"""Prepare a prediction function without putting model setup in the runner."""
+"""Load models and create suggestion functions."""
 
 import json
 from pathlib import Path
@@ -34,25 +34,28 @@ from autocomplete.model.checkpoint import load_checkpoint
 def load_predictor(
     method: str, raw_path: Path, manifest_path: Path, checkpoint_path: Path
 ):
-    """Set up a predictor after the command has verified its development inputs."""
+    """Load the character scorer used by a suggestion method.
+
+    Args:
+        method: neural, catalog_neural or ngram.
+        raw_path: September training source.
+        manifest_path: Training input description.
+        checkpoint_path: Saved neural model.
+    Returns:
+        Next-token scorer or catalog-ranking function.
+    """
     if method in ("neural", "catalog_neural"):
         model, vocabulary, checkpoint = load_checkpoint(checkpoint_path)
 
         if checkpoint["manifest_sha256"] != file_sha256(manifest_path):
             raise ValueError("Checkpoint references a different manifest")
 
-        details = {
-            "checkpoint": {
-                "path": checkpoint_path.as_posix(),
-                "sha256": file_sha256(checkpoint_path),
-                "epoch": checkpoint["epoch"],
-                "model_config": checkpoint["model_config"],
-            }
-        }
         predictor = NeuralPredictor(model, vocabulary)
+
         if method == "catalog_neural":
-            return predictor.score_catalog_terms, details
-        return predictor.next_log_probs, details
+            return predictor.score_catalog_terms
+
+        return predictor.next_log_probs
 
     if method != "ngram":
         raise ValueError(f"Unknown predictor: {method}")
@@ -60,18 +63,19 @@ def load_predictor(
     partition = load_partition(raw_path)
     model = NgramModel()
     model.fit(normalized_terms(partition.train))
-    return model.next_log_probs, {
-        "model": {
-            "type": "character_ngram",
-            "order": model.order,
-            "alpha": model.alpha,
-            "training_interactions": len(partition.train),
-        }
-    }
+
+    return model.next_log_probs
 
 
 def load_catalog(raw_path: Path | None = None, manifest_path: Path | None = None):
-    """Load processed 100K history by default"""
+    """Load prepared history or count an explicitly supplied source.
+
+    Args:
+        raw_path: Optional September source.
+        manifest_path: Optional source fingerprint.
+    Returns:
+        Catalog membership set and interaction counts.
+    """
     if raw_path is None:
         bundle = json.loads(HISTORY_CATALOG.read_text(encoding="utf-8"))
 
@@ -86,6 +90,7 @@ def load_catalog(raw_path: Path | None = None, manifest_path: Path | None = None
         return set(counts), counts
 
     records = load_partition(raw_path, manifest_path).train
+
     return build_catalog(records), count_history_terms(records)
 
 
@@ -100,15 +105,30 @@ def make_suggester(
     candidate_budget: int = CANDIDATE_BUDGET,
     grounded: bool = False,
 ):
-    """Load once, then return prefix -> predictions for both evaluation and the CLI."""
+    """Load once and return a reusable prefix-to-prediction function.
+
+    Args:
+        method: Suggestion method.
+        decoder: greedy or beam for generation.
+        checkpoint_path: Saved neural model.
+        raw_path: September training source.
+        manifest_path: Training input description.
+        beam_width: Maximum live paths.
+        candidate_budget: Maximum completed queries.
+        grounded: Filter generated candidates through the catalog.
+    Returns:
+        Function receiving a prefix and returning predictions.
+    """
     if method != "popularity":
-        predict, _ = load_predictor(
+        predict = load_predictor(
             method,
             raw_path,
             manifest_path,
             checkpoint_path,
         )
+
     catalog = counts = None
+
     if method in ("popularity", "catalog_neural") or grounded:
         catalog, counts = load_catalog()
 
@@ -127,6 +147,7 @@ def make_suggester(
             normalized_prefix, reason = prepare_prefix(prefix)
             ranked = [] if reason else predict(normalized_prefix, catalog)
             top_ten = ranked[:10]
+
             return {
                 "suggestions": [row["completion"] for row in top_ten],
                 "scores": [row["log_score"] for row in top_ten],
@@ -144,13 +165,12 @@ def make_suggester(
 
 
 if __name__ == "__main__":
-    print("Reading existing historical catalog:", HISTORY_CATALOG)
+    print("Catalog:", HISTORY_CATALOG)
     suggest = make_suggester("popularity")
+
     for prefix in ("cat ", ""):
         prediction = suggest(prefix)
         print(f"Prefix {prefix!r}: {len(prediction['suggestions'])} suggestions")
-        ranked = list(zip(
-            prediction["suggestions"], prediction["scores"], strict=True
-        ))
+        ranked = list(zip(prediction["suggestions"], prediction["scores"], strict=True))
         print("First three (term, count):", ranked[:3])
         print("Stop reason:", prediction["stop_reason"])

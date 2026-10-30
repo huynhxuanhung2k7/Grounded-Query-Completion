@@ -1,4 +1,4 @@
-"""Dataset helpers; keep the existing `from autocomplete.data import ...` API."""
+"""Public data records and partition helpers."""
 
 from .records import (
     CUTOFF,

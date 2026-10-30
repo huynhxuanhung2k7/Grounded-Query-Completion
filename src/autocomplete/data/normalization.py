@@ -11,18 +11,35 @@ def _normalized_nfkc(text: str) -> str:
 
 
 def normalize_term(text: str) -> str:
+    """Normalize case, Unicode and spacing in a completed query.
+
+    Args:
+        text: Raw completed query.
+    Returns:
+        Normalized text without outer spaces.
+    """
     normalized = _normalized_nfkc(text)
+
     return " ".join(normalized.split())
 
 
 def normalize_prefix(text: str) -> str:
+    """Normalize typed text while preserving a trailing word boundary.
+
+    Args:
+        text: Raw typed prefix.
+    Returns:
+        Normalized prefix, possibly ending with one space.
+    """
     normalized = _normalized_nfkc(text)
 
     had_trailing_whitespace = bool(normalized) and normalized[-1].isspace()
 
     collapsed = " ".join(normalized.split())
 
-    return collapsed + (" " if collapsed and had_trailing_whitespace else "") #check collapsed here to prevent returning " ", but ""
+    trailing_space = " " if collapsed and had_trailing_whitespace else ""
+
+    return collapsed + trailing_space
 
 
 if __name__ == "__main__":

@@ -1,8 +1,4 @@
-"""Deterministic character IDs built only from supplied training terms.
-
-Normalize text before passing it here. Encoding does not add padding or EOS;
-those belong to context/target window construction.
-"""
+"""Map characters to IDs and restore saved vocabularies."""
 
 from collections.abc import Iterable
 
@@ -18,9 +14,11 @@ EOS_ID = 2
 class CharVocabulary:
     def __init__(self, normalized_terms: Iterable[str]):
         characters: set[str] = set()
+
         for term in normalized_terms:
             if not isinstance(term, str):
                 raise TypeError("Training terms must be strings")
+
             characters.update(term)
 
         if not characters:
@@ -33,7 +31,13 @@ class CharVocabulary:
 
     @classmethod
     def from_tokens(cls, tokens: list[str]) -> "CharVocabulary":
-        """Restore the exact saved ordering, rather than rebuilding sorted IDs."""
+        """Restore the saved token order so IDs still match model weights.
+
+        Args:
+            tokens: Saved special tokens followed by characters.
+        Returns:
+            Restored vocabulary.
+        """
         if not isinstance(tokens, list):
             raise TypeError("Saved tokens must be a list")
 
@@ -47,12 +51,15 @@ class CharVocabulary:
             raise ValueError("Saved tokens must be unique")
 
         characters = tokens[3:]
+
         if not characters or any(len(token) != 1 for token in characters):
             raise ValueError("Expected nonempty single-character vocabulary")
 
         vocabulary = cls.__new__(cls)
         vocabulary.id_to_token = list(tokens)
-        vocabulary.token_to_id = {token: token_id for token_id, token in enumerate(tokens)}
+        vocabulary.token_to_id = {
+            token: token_id for token_id, token in enumerate(tokens)
+        }
 
         return vocabulary
 
@@ -61,26 +68,40 @@ class CharVocabulary:
         return len(self.id_to_token)
 
     def encode(self, text: str) -> list[int]:
-        """Encode characters without changing text; unseen characters become UNK."""
+        """Convert characters to IDs; unseen characters become UNK.
+
+        Args:
+            text: Text without added padding or EOS.
+        Returns:
+            One ID per character.
+        """
         if not isinstance(text, str):
             raise TypeError("Text must be a string")
+
         return [self.token_to_id.get(character, UNK_ID) for character in text]
 
     def decode(self, ids: Iterable[int]) -> str:
-        """Decode ordinary character IDs, rejecting special or invalid IDs.
+        """Convert ordinary character IDs back to text.
 
-        UNK cannot recover the original character. Callers must handle PAD/UNK/EOS
-        explicitly rather than silently turning them into query text.
+        Args:
+            ids: Character IDs, excluding PAD, UNK and EOS.
+        Returns:
+            Decoded text.
         """
         characters = []
+
         for token_id in ids:
             if isinstance(token_id, bool) or not isinstance(token_id, int):
                 raise TypeError("Token IDs must be integers")
+
             if not 0 <= token_id < len(self):
                 raise ValueError(f"Token ID outside vocabulary: {token_id}")
+
             if token_id in (PAD_ID, UNK_ID, EOS_ID):
                 raise ValueError("Special tokens cannot be decoded as characters")
+
             characters.append(self.id_to_token[token_id])
+
         return "".join(characters)
 
 

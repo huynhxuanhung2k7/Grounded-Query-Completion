@@ -1,7 +1,4 @@
-"""Process manually downloaded AmazonQAC files; never download or train.
-
-Run from project/: uv run python -m scripts.process_data --dataset development
-"""
+"""Prepare local AmazonQAC data."""
 
 import argparse
 import hashlib
@@ -64,6 +61,7 @@ def combine_sample() -> None:
         return
 
     records = []
+
     for index in SHARD_INDICES:
         path = shard_path(SAMPLE_ROOT, index, SAMPLE_ROWS_PER_SHARD)
         rows = read_source(path)
@@ -72,15 +70,16 @@ def combine_sample() -> None:
             raise ValueError(f"Expected {SAMPLE_ROWS_PER_SHARD} records: {path}")
 
         records.extend(rows)
-    partition_record(records)  # Reject invalid schema/duplicate IDs before saving.
+
+    partition_record(records)
     INPUT.parent.mkdir(parents=True, exist_ok=True)
-    # Keep the original writer so cached checkpoints still match the raw-file hash.
+
     Dataset.from_list(records).to_parquet(str(INPUT))
 
 
 def prepare_development() -> None:
     combine_sample()
-    # Existing manifests remain byte-for-byte unchanged for old checkpoints.
+
     partition = load_partition(INPUT, MANIFEST if MANIFEST.exists() else None)
     cases = make_development_cases(partition, SEED)
     case_hash = write_development_cases(OUTPUT, cases)
@@ -92,8 +91,10 @@ def prepare_development() -> None:
         "development_cases": len(cases),
         "quarantine": len(partition.quarantine),
     }
+
     if MANIFEST.exists():
         existing = json.loads(MANIFEST.read_text())
+
         if (
             existing["hashes"]["development_cases SHA-256"] != case_hash
             or existing["counts"] != counts
@@ -123,17 +124,27 @@ def prepare_development() -> None:
                 },
             },
         )
+
     print(json.dumps(counts, indent=2))
     print(f"Cases: {OUTPUT}\nManifest: {MANIFEST}")
 
 
 def load_history_sources(paths: list[Path]) -> PartitionResult:
+    """Load historical interactions and apply the shared chronological split.
+
+    Args:
+        paths: Local JSONL selections.
+    Returns:
+        Training, development and quarantined records.
+    """
     records = []
+
     for path in paths:
         rows = read_source(path)
         records.extend(rows)
         print(f"Loaded {len(rows)} rows: {path.name}")
-    return partition_record(records)  # Reject duplicate IDs; apply the same cutoff.
+
+    return partition_record(records)
 
 
 def build_expanded_catalog(
@@ -142,13 +153,24 @@ def build_expanded_catalog(
     original_path: Path = INPUT,
     original_manifest: Path = MANIFEST,
 ) -> dict:
+    """Count eligible history, checking that the original sample is unchanged.
+
+    Args:
+        paths: Larger local historical selections.
+        original_path: Original September sample.
+        original_manifest: Saved sample description.
+    Returns:
+        Historical term counts and source details.
+    """
     manifest = json.loads(original_manifest.read_text())
+
     if (
         manifest["dataset"]["revision"] != REVISION
         or manifest["normalization_version"] != NORMALIZATION_VERSION
         or manifest["cutoff"] != CUTOFF.isoformat()
     ):
         raise ValueError("Original sample uses different data/split settings")
+
     verify_file_hash(original_path, manifest["hashes"]["raw_file SHA-256"])
     original_rows = read_parquet(original_path)
     original = partition_record(original_rows)
@@ -159,14 +181,16 @@ def build_expanded_catalog(
         *(row for row, _ in partition.quarantine),
     ]
     by_id = {row["query_id"]: row for row in all_rows}
-    # The 100K selection includes the 20K sample; never concatenate it a second time.
+
     for row in original_rows:
         if by_id.get(row["query_id"]) != row:
             raise ValueError(
                 f"Expanded source omits or changes original H_0/sample ID {row['query_id']}"
             )
+
     counts = count_history_terms(partition.train)
     old_counts = count_history_terms(original.train)
+
     return {
         "history_id": f"history_source_{len(all_rows)}",
         "dataset": {"name": "amazon/AmazonQAC", "revision": REVISION},
@@ -200,12 +224,13 @@ def prepare_history() -> None:
         paths, original_path=INPUT, original_manifest=MANIFEST
     )
     expected = len(SHARD_INDICES) * HISTORY_ROWS_PER_SHARD
+
     if bundle["counts"]["source_rows"] != expected:
         raise ValueError(f"Expected {expected} source rows; check the four files")
+
     created = save_json(HISTORY_CATALOG, bundle)
     print(json.dumps(bundle["counts"], indent=2))
     print(f"{'Saved' if created else 'Reusing'}: {HISTORY_CATALOG}")
-    print("Original training/development data and model weights are unchanged.")
 
 
 def prepare_official(
@@ -213,18 +238,32 @@ def prepare_official(
     cases_path: Path = OFFICIAL_CASES,
     manifest_path: Path = OFFICIAL_MANIFEST,
 ) -> Path:
+    """Preserve supplied October prefixes and answers as evaluation cases.
+
+    Args:
+        raw_path: Released October Parquet file.
+        cases_path: Prepared request output.
+        manifest_path: Source and case fingerprint output.
+    Returns:
+        Prepared cases path.
+    """
     if file_sha256(raw_path) != EXPECTED_SHA256:
         raise ValueError(f"Raw file checksum mismatch: {raw_path}")
+
     rows = read_parquet(raw_path, columns=["query_id", "prefix", "final_search_term"])
+
     if len(rows) != EXPECTED_ROWS:
         raise ValueError(f"Expected {EXPECTED_ROWS} rows, found {len(rows)}")
+
     cases, seen = [], set()
+
     for row in rows:
         query_id, prefix, truth = (
             row["query_id"],
             row["prefix"],
             row["final_search_term"],
         )
+
         if (
             type(query_id) is not int
             or not isinstance(prefix, str)
@@ -233,10 +272,12 @@ def prepare_official(
             raise TypeError(
                 "Expected integer query_id and string prefix/final_search_term"
             )
+
         if query_id in seen:
             raise ValueError(f"Duplicate query_id: {query_id}")
+
         seen.add(query_id)
-        # Official requests already have a prefix: do not sample or cut the answer.
+
         cases.append(
             asdict(
                 DevelopmentCase(
@@ -249,9 +290,10 @@ def prepare_official(
                 )
             )
         )
-    # Keep earlier prepared versions unchanged, including their formatting/metadata.
+
     if cases_path.exists() and manifest_path.exists():
         info = json.loads(manifest_path.read_text())
+
         if (
             json.loads(cases_path.read_text()) != cases
             or info["raw_sha256"] != EXPECTED_SHA256
@@ -262,7 +304,9 @@ def prepare_official(
             raise ValueError(
                 "Existing official preparation differs; choose new output paths"
             )
+
         return cases_path
+
     manifest = {
         "dataset": "amazon/AmazonQAC",
         "revision": REVISION,
@@ -282,11 +326,14 @@ def prepare_official(
             "note": "First 100 requests are retained, but are not untouched test evidence",
         },
     }
+
     for path, value in ((cases_path, cases), (manifest_path, manifest)):
         if path.exists() and json.loads(path.read_text()) != value:
             raise FileExistsError(f"Different prepared data already exists: {path}")
+
     save_json(cases_path, cases)
     save_json(manifest_path, manifest)
+
     return cases_path
 
 
@@ -296,13 +343,13 @@ def main(argv: list[str] | None = None) -> None:
         "--dataset", choices=("development", "history", "official"), required=True
     )
     args = parser.parse_args(argv)
+
     if args.dataset == "development":
         prepare_development()
     elif args.dataset == "history":
         prepare_history()
     else:
         print(f"Prepared requests: {prepare_official(OFFICIAL_RAW)}")
-        print("No model evaluated.")
 
 
 if __name__ == "__main__":

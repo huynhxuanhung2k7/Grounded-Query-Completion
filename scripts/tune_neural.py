@@ -34,38 +34,51 @@ SEED = 42
 
 RUN_DIRECTORY = Path("artifacts/neural_tuning")
 
-def suggest_config(trial: Trial) -> dict[str, object]:
 
+def suggest_config(trial: Trial) -> dict[str, object]:
+    """Sample one trial's architecture and training settings.
+
+    Args:
+        trial: Optuna trial choosing parameter values.
+    Returns:
+        Model and training settings.
+    """
     model = {
         "hidden_dim": trial.suggest_categorical("hidden_dim", [256, 512]),
-        "context_length": trial.suggest_categorical("context_length", [32, 64]),  
+        "context_length": trial.suggest_categorical("context_length", [32, 64]),
         "num_hidden_layers": trial.suggest_categorical("num_hidden_layers", [1, 2]),
         "embedding_dim": trial.suggest_categorical("embedding_dim", [64, 128]),
-        "activation": trial.suggest_categorical("activation", ["relu", "gelu", "silu", "tanh"]),
-        "normalization": trial.suggest_categorical("normalization", ["none", "layer_norm", "batch_norm"]),
-        "dropout": trial.suggest_float("dropout", 0.0, 0.5),    
+        "activation": trial.suggest_categorical(
+            "activation", ["relu", "gelu", "silu", "tanh"]
+        ),
+        "normalization": trial.suggest_categorical(
+            "normalization", ["none", "layer_norm", "batch_norm"]
+        ),
+        "dropout": trial.suggest_float("dropout", 0.0, 0.5),
     }
-    
+
     optimizer_name = trial.suggest_categorical("optimizer", ["adam", "adamw"])
+
     if optimizer_name == "adamw":
         weight_decay = trial.suggest_categorical("weight_decay", [0.0, 0.001, 0.0001])
     else:
         weight_decay = 0.0
-        
+
     training = {
         "learning_rate": trial.suggest_float("learning_rate", 1e-4, 5e-3, log=True),
         "batch_size": trial.suggest_categorical("batch_size", [128, 256, 512]),
-        "optimizer":  optimizer_name,
+        "optimizer": optimizer_name,
         "weight_decay": weight_decay,
-        "scheduler": trial.suggest_categorical("scheduler", ["none", "plateau", "cosine"]),
-        "gradient_clip_norm": trial.suggest_categorical("gradient_clip_norm", [None, 1.0, 5.0]),
+        "scheduler": trial.suggest_categorical(
+            "scheduler", ["none", "plateau", "cosine"]
+        ),
+        "gradient_clip_norm": trial.suggest_categorical(
+            "gradient_clip_norm", [None, 1.0, 5.0]
+        ),
     }
-        
-    return {
-        "model": model,
-        "training": training
-    }
-    
+
+    return {"model": model, "training": training}
+
 
 def train_trial(
     config,
@@ -74,79 +87,83 @@ def train_trial(
     vocabulary,
     trial_directory,
 ) -> Path:
+    """Train a trial and retain its lowest character-validation-loss epoch.
+
+    Args:
+        config: Model and training settings.
+        train_terms: September training queries.
+        validation_terms: Later September queries.
+        vocabulary: Training character IDs.
+        trial_directory: Separate output directory for this trial.
+    Returns:
+        Best checkpoint path.
+    """
     model_config, training_config = config["model"], config["training"]
-    
+
     context_length = model_config["context_length"]
     batch_size = training_config["batch_size"]
-    
+
     torch.manual_seed(SEED)
-    
+
     full_model_config = {
         "vocab_size": len(vocabulary),
         **model_config,
     }
-    
+
     model = NeuralCharModel(**full_model_config)
-    
+
     train_data = NextCharacterDataset(
         train_terms,
         vocabulary,
         context_length,
     )
-    
+
     validation_data = NextCharacterDataset(
-        validation_terms,
-        vocabulary,
-        context_length,
-        allow_unknown=True
+        validation_terms, vocabulary, context_length, allow_unknown=True
     )
-    
+
     train_loader = DataLoader(
         train_data,
         batch_size,
         shuffle=True,
     )
-    
+
     val_loader = DataLoader(
         validation_data,
         batch_size,
     )
-    
+
     optimizer_type = {
         "adam": optim.Adam,
         "adamw": optim.AdamW,
     }[training_config["optimizer"]]
-    
+
     optimizer = optimizer_type(
         model.parameters(),
         lr=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
     )
-    
+
     loss_function = nn.CrossEntropyLoss()
-    
+
     scheduler = None
+
     if training_config["scheduler"] == "plateau":
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode="min",
-            factor=0.5,
-            patience=0
+            optimizer, mode="min", factor=0.5, patience=0
         )
     elif training_config["scheduler"] == "cosine":
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=MAX_EPOCHS,
-            eta_min=0.0
+            optimizer, T_max=MAX_EPOCHS, eta_min=0.0
         )
-        
+
     best_path = trial_directory / "best.pt"
     history_path = trial_directory / "history.pt"
-    
+
     history = []
     best_loss = float("inf")
     epochs_without_improvement = 0
-    
+
     for epoch in range(1, MAX_EPOCHS + 1):
         training_report = train_one_epoch(
             model,
@@ -157,20 +174,22 @@ def train_trial(
         )
         validation_report = evaluate(model, val_loader)
         loss = validation_report["loss"]
-        
+
         if loss is None or not math.isfinite(loss):
             raise ValueError("Validation loss is missing or non-finite")
 
-        history.append({
-            "epoch": epoch,
-            "training": training_report,
-            "validation": validation_report,
-        })
-        
+        history.append(
+            {
+                "epoch": epoch,
+                "training": training_report,
+                "validation": validation_report,
+            }
+        )
+
         if loss < best_loss:
             best_loss = loss
             epochs_without_improvement = 0
-            
+
             torch.save(
                 {
                     "format_version": 1,
@@ -188,20 +207,29 @@ def train_trial(
             )
         else:
             epochs_without_improvement += 1
-        
+
         if training_config["scheduler"] == "plateau":
             scheduler.step(loss)
         elif training_config["scheduler"] == "cosine":
             scheduler.step()
-        
+
         torch.save(history, history_path)
-        
+
         if epochs_without_improvement >= EARLY_STOPPING:
             break
-    
+
     return best_path
-            
+
+
 def evaluate_trial(checkpoint_path, development_cases) -> dict:
+    """Measure complete-query quality using the saved trial checkpoint.
+
+    Args:
+        checkpoint_path: Best character-validation checkpoint.
+        development_cases: Fixed September evaluation requests.
+    Returns:
+        Development results and prediction p95.
+    """
     suggest = make_suggester(
         "neural",
         decoder="beam",
@@ -212,34 +240,37 @@ def evaluate_trial(checkpoint_path, development_cases) -> dict:
         candidate_budget=CANDIDATE_BUDGET,
         grounded=False,
     )
-    
+
     latencies_ms = []
-    
-    def time_predict(prefix): 
+
+    def time_predict(prefix):
         started = perf_counter()
-        
+
         prediction = suggest(prefix)
-        
+
         elapsed_ms = (perf_counter() - started) * 1000
         latencies_ms.append(elapsed_ms)
-        
+
         return prediction
 
     result = evaluate_cases(
         development_cases,
         time_predict,
     )
-    
+
     if latencies_ms:
         sorted_times = sorted(latencies_ms)
+
         rank = math.ceil(0.95 * len(sorted_times))
+
         p95_ms = sorted_times[rank - 1]
     else:
         p95_ms = None
 
     result["p95_ms"] = p95_ms
-    
+
     return result
+
 
 def objective(
     trial,
@@ -249,13 +280,25 @@ def objective(
     development_cases,
     run_directory,
 ) -> float:
+    """Train one configuration and score its complete-query predictions.
+
+    Args:
+        trial: Optuna trial choosing settings.
+        train_terms: September training queries.
+        validation_terms: Character-validation queries.
+        vocabulary: Training character IDs.
+        development_cases: Fixed query-evaluation requests.
+        run_directory: Parent directory for trial outputs.
+    Returns:
+        Development Success@10 used to compare trials.
+    """
     config = suggest_config(trial)
-    
+
     trial_directory = run_directory / f"trial_{trial.number:03d}"
     trial_directory.mkdir(parents=True, exist_ok=True)
-    
-    save_json(trial_directory / "config.json", config) 
-    
+
+    save_json(trial_directory / "config.json", config)
+
     checkpoint_path = train_trial(
         config,
         train_terms,
@@ -263,12 +306,12 @@ def objective(
         vocabulary,
         trial_directory,
     )
-    
+
     result = evaluate_trial(
         checkpoint_path,
         development_cases,
     )
-    
+
     summary = {
         "trial_number": trial.number,
         "split": "development",
@@ -281,29 +324,30 @@ def objective(
         **result["prediction_summary"],
         "p95_ms": result["p95_ms"],
     }
-    
+
     save_json(trial_directory / "summary.json", summary)
-    
+
     return summary["success_at_10"]
 
+
 def main() -> None:
+    """Load fixed inputs and add trials to the saved development study."""
     RUN_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    
+
     partition = load_partition(INPUT, MANIFEST)
-    
+
     train_terms = normalized_terms(partition.train)
     validation_terms = normalized_terms(partition.development)
-    
+
     vocabulary = CharVocabulary(train_terms)
-    
-    
+
     _, development_cases = load_development_inputs(MANIFEST, INPUT, OUTPUT)
-    
+
     database_path = RUN_DIRECTORY / "study.db"
     storage_url = f"sqlite:///{database_path.resolve()}"
-    
+
     study_name = "neural_tuning_v1"
-    
+
     study = optuna.create_study(
         study_name=study_name,
         storage=storage_url,
@@ -311,7 +355,7 @@ def main() -> None:
         load_if_exists=True,
         sampler=optuna.samplers.TPESampler(seed=SEED),
     )
-    
+
     def run_trial(trial):
         return objective(
             trial,
@@ -321,17 +365,15 @@ def main() -> None:
             development_cases,
             RUN_DIRECTORY,
         )
-    
+
     study.optimize(
         run_trial,
         n_trials=N_TRIALS,
     )
-    
-    if not any(
-        t.state == optuna.trial.TrialState.COMPLETE
-        for t in study.trials
-    ):
+
+    if not any(t.state == optuna.trial.TrialState.COMPLETE for t in study.trials):
         print("No completed trials.")
+
         return
 
     best = study.best_trial
@@ -342,14 +384,13 @@ def main() -> None:
         {
             "trial_number": best.number,
             "success_at_10": best.value,
-            "config": json.loads(
-                (best_directory / "config.json").read_text()
-            ),
+            "config": json.loads((best_directory / "config.json").read_text()),
             "checkpoint_path": str(best_directory / "best.pt"),
         },
     )
 
     print(f"Best trial {best.number}: Success@10={best.value:.4f}")
+
 
 if __name__ == "__main__":
     main()

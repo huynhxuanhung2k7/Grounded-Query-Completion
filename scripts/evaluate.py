@@ -32,12 +32,22 @@ OUTPUT_ROOT = Path("artifacts/results")
 
 def positive_int(value: str) -> int:
     number = int(value)
+
     if number <= 0:
         raise argparse.ArgumentTypeError("must be a positive integer")
+
     return number
 
 
 def arguments(argv, *, demo=False):
+    """Read shared options for terminal suggestions or batch evaluation.
+
+    Args:
+        argv: Command-line arguments, or None for the terminal arguments.
+        demo: Include prefix input instead of evaluation split/output options.
+    Returns:
+        Parsed options and their argument parser.
+    """
     parser = argparse.ArgumentParser(
         description="Try or evaluate the autocomplete models."
     )
@@ -48,6 +58,7 @@ def arguments(argv, *, demo=False):
     )
     parser.add_argument("--decoder", choices=("greedy", "beam"))
     parser.add_argument("--checkpoint", type=Path)
+
     if demo:
         parser.add_argument("--prefix", help="Omit for an interactive prompt")
     else:
@@ -55,6 +66,7 @@ def arguments(argv, *, demo=False):
             "--split", choices=("development", "official"), default="development"
         )
         parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
+
     parser.add_argument("--beam-width", type=positive_int)
     parser.add_argument("--candidate-budget", type=positive_int)
     parser.add_argument("--grounded", action="store_true")
@@ -92,26 +104,28 @@ def arguments(argv, *, demo=False):
 def load_official_cases():
     """Use supplied October prefixes, without changing September training inputs."""
     manifest = json.loads(OFFICIAL_MANIFEST.read_text())
+
     if manifest["normalization_version"] != NORMALIZATION_VERSION:
         raise ValueError("Official normalization version differs")
+
     verify_file_hash(OFFICIAL_CASES, manifest["cases_sha256"])
     cases = [DevelopmentCase(**row) for row in json.loads(OFFICIAL_CASES.read_text())]
+
     if len(cases) != manifest["request_count"]:
         raise ValueError("Official-case count differs from manifest")
+
     return cases
 
 
 def main(argv: list[str] | None = None) -> None:
     args, _ = arguments(argv)
+
     if args.split == "development":
         _, cases = load_development_inputs(MANIFEST, INPUT, OUTPUT)
         cases_path = OUTPUT
     else:
         cases = load_official_cases()
         cases_path = OFFICIAL_CASES
-        print(
-            "October includes the previously exposed first 100 requests"
-        )
 
     suggest = make_suggester(
         args.model,
@@ -127,8 +141,9 @@ def main(argv: list[str] | None = None) -> None:
 
     def timed_predict(prefix):
         started = perf_counter()
-        prediction = suggest(prefix)  # Only the prefix, never the recorded answer.
+        prediction = suggest(prefix)
         latencies.append((perf_counter() - started) * 1000)
+
         return prediction
 
     def progress(done, total):
@@ -137,6 +152,16 @@ def main(argv: list[str] | None = None) -> None:
 
     print(f"Starting {args.model}: {len(cases)} {args.split} cases", flush=True)
     result = evaluate_cases(cases, timed_predict, progress=progress)
+
+    p95_ms = None
+
+    if latencies:
+        sorted_times = sorted(latencies)
+
+        rank = ceil(0.95 * len(sorted_times))
+
+        p95_ms = sorted_times[rank - 1]
+
     summary = {
         "dataset": "amazon/AmazonQAC",
         "split": args.split,
@@ -144,25 +169,27 @@ def main(argv: list[str] | None = None) -> None:
         "cases_path": str(cases_path),
         **result["summary"],
         **result["prediction_summary"],
-        # Nearest-rank percentile; prediction only, not setup or metric code.
-        "p95_ms": sorted(latencies)[ceil(0.95 * len(latencies)) - 1]
-        if latencies
-        else None,
+        "p95_ms": p95_ms,
     }
     run_id = args.model
+
     if args.model in ("neural", "catalog_neural"):
         summary["checkpoint_path"] = str(args.checkpoint or CHECKPOINT)
+
     if args.model in ("popularity", "catalog_neural") or args.grounded:
         summary["catalog_path"] = str(HISTORY_CATALOG)
         run_id += "_history_100k"
+
     if args.decoder:
         summary.update(decoder=args.decoder, grounded=args.grounded)
         run_id += f"_{args.decoder}"
+
     if args.decoder == "beam":
         summary.update(
             beam_width=args.beam_width, candidate_budget=args.candidate_budget
         )
         run_id += f"_b{args.beam_width}_m{args.candidate_budget}"
+
     if args.grounded:
         run_id += "_grounded"
 
@@ -172,9 +199,7 @@ def main(argv: list[str] | None = None) -> None:
 
     path = args.output_root / args.split / run_id / "summary.json"
     created = save_evaluation_artifact(path, summary)
-    print(
-        f"{'Saved' if created else 'Reusing saved summary and original timing'}: {path}"
-    )
+    print(f"{'Saved' if created else 'Reused'}: {path}")
     print(json.dumps(json.loads(path.read_text()), indent=2))
 
 

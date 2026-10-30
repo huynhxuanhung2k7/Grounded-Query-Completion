@@ -6,7 +6,7 @@ from scripts.evaluate import arguments
 
 
 def main(argv: list[str] | None = None) -> None:
-    # Reuse the method options instead of maintaining a second set of defaults.
+
     args, _ = arguments(argv, demo=True)
     suggest = make_suggester(
         args.model,
@@ -18,6 +18,7 @@ def main(argv: list[str] | None = None) -> None:
         candidate_budget=args.candidate_budget,
         grounded=args.grounded,
     )
+
     while True:
         if args.prefix is None:
             try:
@@ -25,16 +26,20 @@ def main(argv: list[str] | None = None) -> None:
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
+
             if not prefix:
                 break
         else:
             prefix = args.prefix
 
         prediction = suggest(prefix)
+
         for rank, term in enumerate(prediction["suggestions"], start=1):
             print(f"{rank}. {term}")
+
         if not prediction["suggestions"]:
             print(f"No suggestions ({prediction['stop_reason'] or 'no_candidates'}).")
+
         if args.prefix is not None:
             break
 

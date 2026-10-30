@@ -1,4 +1,4 @@
-"""Train the first neural model. Run deliberately; evaluation never calls this."""
+"""Train the baseline character model."""
 
 import math
 from pathlib import Path
@@ -21,9 +21,7 @@ MAX_EPOCHS = 10
 EARLY_STOPPING_PATIENCE = 2
 BATCH_SIZE = 256
 LEARNING_RATE = 0.001
-RUN_DIRECTORY = Path(
-    "artifacts/neural_v1"
-)  # Change for a new experiment; never overwrite v1.
+RUN_DIRECTORY = Path("artifacts/neural_v1")
 MODEL_CONFIG = {
     "context_length": 32,
     "embedding_dim": 64,
@@ -37,6 +35,7 @@ def main() -> None:
         raise FileExistsError(
             f"Run already exists: {RUN_DIRECTORY}. Choose a new RUN_DIRECTORY."
         )
+
     torch.manual_seed(SEED)
     partition = load_partition(INPUT, MANIFEST)
     train_terms = normalized_terms(partition.train)
@@ -65,19 +64,23 @@ def main() -> None:
 
     history, best_loss, stale_epochs = [], float("inf"), 0
     best_path = None
+
     for epoch in range(1, MAX_EPOCHS + 1):
         print(f"Epoch {epoch}/{MAX_EPOCHS}: training...", flush=True)
         training = train_one_epoch(model, train_loader, optimizer, criterion)
         validation = evaluate(model, validation_loader)
         loss = validation["loss"]
+
         if loss is None or not math.isfinite(loss):
             raise ValueError(f"Invalid validation loss at epoch {epoch}")
+
         history.append({"epoch": epoch, "training": training, "validation": validation})
-        # This is a running log for this new run, not an immutable experiment result.
+
         (RUN_DIRECTORY / "history.json").write_bytes(canonical_json_bytes(history))
         print(
             f"Train loss {training['loss']:.4f}; validation loss {loss:.4f}", flush=True
         )
+
         if loss < best_loss:
             best_loss, stale_epochs = loss, 0
             best_path = RUN_DIRECTORY / "best.pt"
@@ -98,9 +101,11 @@ def main() -> None:
             )
         else:
             stale_epochs += 1
+
         if stale_epochs >= EARLY_STOPPING_PATIENCE:
             print("Early stopping: validation loss stopped improving.")
             break
+
     save_json(
         RUN_DIRECTORY / "summary.json",
         {

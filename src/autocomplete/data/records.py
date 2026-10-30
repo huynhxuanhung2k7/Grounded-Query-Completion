@@ -1,7 +1,7 @@
 import hashlib
 import json
 import random
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Final
@@ -58,26 +58,19 @@ class DevelopmentCase:
 
 
 def validate_train_record(record: dict[str, object]) -> None:
-    """Check required training fields and their exact outer Python types.
-
-    This checks that prefixes is a list, but does not validate its elements,
-    parse timestamps, or check field values.
+    """Check required source fields and their types.
 
     Args:
-        record: One raw AmazonQAC training interaction.
-
-    Raises:
-        ValueError: A required field is missing.
-        TypeError: A field does not have its declared Python type.
+        record: One September interaction.
     """
-    # Check presence before accessing field values.
+
     missing_keys = [key for key in REQUIRED_TRAIN_FIELDS if key not in record]
+
     if missing_keys:
         raise ValueError(
             f"record is missing required fields: {', '.join(missing_keys)}"
         )
 
-    # Require exact types without silently converting source values.
     for field, expected_type in TRAIN_FIELD_TYPE.items():
         value = record[field]
 
@@ -89,21 +82,12 @@ def validate_train_record(record: dict[str, object]) -> None:
 
 
 def partition_record(records: list[dict[str, object]]) -> PartitionResult:
-    """Split complete interactions around CUTOFF and retain quarantine reasons.
-
-    Interactions ending before the cutoff train; those starting at or after
-    it develop. Invalid timestamps, reversed times, and cutoff crossings are
-    quarantined. Records are preserved without modification.
+    """Split interactions at the cutoff; quarantine invalid or crossing times.
 
     Args:
-        records: Raw training interactions with unique query IDs.
-
-    Raises:
-        ValueError: A required field is missing or a query ID is duplicated.
-        TypeError: A required field has the wrong Python type.
-
+        records: Source interactions with unique query IDs.
     Returns:
-        Training and development records, plus (record, reason) quarantine pairs.
+        Training, development and quarantined records.
     """
     result = PartitionResult(train=[], development=[], quarantine=[])
     seen_ids = set()
@@ -112,8 +96,10 @@ def partition_record(records: list[dict[str, object]]) -> PartitionResult:
         validate_train_record(record)
 
         query_id = record[QUERY_ID]
+
         if query_id in seen_ids:
             raise ValueError(f"Query ID: {query_id} duplicated!")
+
         seen_ids.add(query_id)
 
         try:
@@ -139,51 +125,40 @@ def choose_development_prefix(
     record: dict[str, object],
     seed: int,
 ) -> tuple[int, str]:
-    """Choose an observed prefix position using the seed and query ID.
-
-    Selection is independent of the final search term and record-processing
-    order. Repeated prefix values remain separate eligible positions.
+    """Choose an observed prefix using seed and query ID, never the answer.
 
     Args:
-        record: A valid interaction containing a query ID and observed prefixes.
-        seed: Fixed seed used to reproduce this interaction's selection.
-
-    Raises:
-        ValueError: The observed prefix list is empty.
-
+        record: Interaction containing observed prefixes.
+        seed: Fixed sampling seed.
     Returns:
-        The zero-based position and its unchanged raw prefix string.
+        Selected position and unchanged prefix text.
     """
     rng = random.Random(f"{seed}:{record[QUERY_ID]}")
 
     prefix_num = len(record[PREFIXES])
+
     if prefix_num == 0:
         raise ValueError(f"Record {record[QUERY_ID]} has no prefixes")
 
     index = rng.randrange(prefix_num)
+
     return index, record[PREFIXES][index]
 
 
 def make_development_case(record: dict[str, object], seed: int) -> DevelopmentCase:
-    """Create an immutable evaluation case from one development interaction.
-
-    Preserve the selected position and raw strings for auditing, alongside
-    normalized prefix and final-term strings for matching and evaluation.
+    """Keep raw and normalized text for one evaluation request.
 
     Args:
-        record: A valid interaction from the development partition.
-        seed: Fixed seed passed to the observed-prefix chooser.
-
-    Raises:
-        ValueError: The observed prefix list is empty.
-
+        record: Development interaction.
+        seed: Fixed prefix-selection seed.
     Returns:
-        A case containing the query ID, selected position, and raw/normalized text.
+        One development case.
     """
     prefix_index, raw_prefix = choose_development_prefix(record, seed)
     normalized_prefix = normalize_prefix(raw_prefix)
     raw_final_search_term = record[FINAL_SEARCH_TERM]
     normalized_final_search_term = normalize_term(raw_final_search_term)
+
     return DevelopmentCase(
         record[QUERY_ID],
         prefix_index,
@@ -198,118 +173,92 @@ def make_development_cases(
     partition_result: PartitionResult,
     seed: int,
 ) -> list[DevelopmentCase]:
-    """Build one case per development interaction, preserving input order.
-
-    Training and quarantined records are excluded. An empty development
-    partition produces an empty list.
+    """Build one case per development interaction.
 
     Args:
-        partition_result: The result of splitting complete interactions.
-        seed: Fixed seed used for each interaction's prefix selection.
-
-    Raises:
-        ValueError: A development interaction has an empty prefix list.
-
+        partition_result: Chronologically split records.
+        seed: Fixed prefix-selection seed.
     Returns:
-        Development cases with raw and normalized text.
+        Development cases in interaction order.
     """
     cases = []
+
     for record in partition_result.development:
         cases.append(make_development_case(record, seed))
 
     return cases
 
+
 def _canonical_cases_bytes(
     cases: list[DevelopmentCase],
 ) -> bytes:
-    """Serialize all six case fields as canonical UTF-8 JSON bytes.
-
-    Sort cases by query ID and dictionary keys alphabetically, retain Unicode
-    characters, and omit formatting spaces and a trailing newline. Hashing and
-    writing share this exact byte representation.
+    """Sort cases and encode them consistently for hashing.
 
     Args:
-        cases: Development cases with unique query IDs, in any order.
-
+        cases: Cases with unique query IDs.
     Returns:
-        Compact JSON bytes ordered by query ID, without modifying the input list.
+        Compact UTF-8 JSON bytes ordered by query ID.
     """
-    sorted_cases = sorted(cases, key = lambda x: x.query_id)
-    
-    case_data = [
-        {
-            "query_id": case.query_id,
-            "prefix_index": case.prefix_index,
-            "raw_prefix": case.raw_prefix,
-            "normalized_prefix": case.normalized_prefix,
-            "raw_final_search_term": case.raw_final_search_term,
-            "normalized_final_search_term": case.normalized_final_search_term,
-        }
-        for case in sorted_cases
-    ]
-    
+    sorted_cases = sorted(cases, key=lambda x: x.query_id)
+
+    case_data = [asdict(case) for case in sorted_cases]
+
     return json.dumps(
-        case_data, 
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":")
+        case_data, sort_keys=True, ensure_ascii=False, separators=(",", ":")
     ).encode("utf-8")
+
 
 def development_cases_digest(
     cases: list[DevelopmentCase],
 ) -> str:
-    """Compute the SHA-256 fingerprint of the canonical case bytes.
+    """Fingerprint every saved case field, independent of input order.
 
     Args:
-        cases: Development cases with unique query IDs, in any order.
-
+        cases: Development cases.
     Returns:
-        A lowercase, 64-character hexadecimal digest. Reordering cases does not
-        change it; every serialized field contributes to the fingerprint.
+        SHA-256 text.
     """
     payload = _canonical_cases_bytes(cases)
+
     return hashlib.sha256(payload).hexdigest()
+
 
 def write_development_cases(
     path: Path,
     cases: list[DevelopmentCase],
 ) -> str:
-    """Write canonical case bytes, reusing an identical existing file.
-
-    Create parent directories as needed. If the destination already contains
-    identical bytes, return its digest without rewriting it.
+    """Save cases or reuse an identical existing file.
 
     Args:
-        path: Destination JSON file.
-        cases: Development cases with unique query IDs, in any order.
-
-    Raises:
-        FileExistsError: The destination exists with different bytes.
-
+        path: Output file.
+        cases: Development cases.
     Returns:
-        The SHA-256 digest of the file bytes, matching development_cases_digest.
+        Fingerprint of the saved bytes.
     """
     payload = _canonical_cases_bytes(cases)
     digest = hashlib.sha256(payload).hexdigest()
-    
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     if path.exists():
         if path.read_bytes() != payload:
             raise FileExistsError(
-            f"Refusing to overwrite different development cases: {path}"
-        )
+                f"Refusing to overwrite different development cases: {path}"
+            )
 
         return digest
-    
+
     path.write_bytes(payload)
+
     return digest
 
 
 if __name__ == "__main__":
     sample = {
-        "session_id": "toy", "prefixes": ["c", "ca"],
-        "final_search_term": "cat", "popularity": 1,
+        "session_id": "toy",
+        "prefixes": ["c", "ca"],
+        "final_search_term": "cat",
+        "popularity": 1,
     }
     times = [
         ("2023-09-24 12:00:00", "2023-09-24 12:00:01"),
@@ -324,5 +273,8 @@ if __name__ == "__main__":
     print("Cutoff:", CUTOFF)
     print("Training IDs:", [row["query_id"] for row in partition.train])
     print("Development IDs:", [row["query_id"] for row in partition.development])
-    print("Quarantine:", [(row["query_id"], reason) for row, reason in partition.quarantine])
+    print(
+        "Quarantine:",
+        [(row["query_id"], reason) for row, reason in partition.quarantine],
+    )
     print("Chosen development case:", make_development_cases(partition, seed=42)[0])

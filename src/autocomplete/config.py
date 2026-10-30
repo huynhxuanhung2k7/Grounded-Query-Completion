@@ -9,8 +9,8 @@ CHECKPOINT = Path("artifacts/neural_v1/best.pt")
 
 REVISION = "975cbfac4623ffb054c59631e06e39d0831e47fb"
 SHARD_INDICES = (0, 6, 13, 19)
-SAMPLE_ROWS_PER_SHARD = 5_000  # Four files: 20,000 source rows total.
-HISTORY_ROWS_PER_SHARD = 25_000  # Includes the sample: 100,000 total, not extra.
+SAMPLE_ROWS_PER_SHARD = 5_000
+HISTORY_ROWS_PER_SHARD = 25_000
 SAMPLE_ROOT = Path("datasets/amazonqac/raw/sample_20k") / REVISION
 HISTORY_ROOT = Path("datasets/amazonqac/raw/history_100k") / REVISION
 HISTORY_CATALOG = Path("datasets/amazonqac/processed/history_source_100k/catalog.json")
@@ -24,7 +24,7 @@ MAX_SUGGESTIONS = 10
 
 
 if __name__ == "__main__":
-    print("Run from project/; current directory:", Path.cwd())
+    print("Working directory:", Path.cwd())
     print("Training source:", INPUT)
     print("Historical catalog:", HISTORY_CATALOG)
     print("Neural checkpoint:", CHECKPOINT)

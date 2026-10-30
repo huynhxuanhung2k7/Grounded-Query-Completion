@@ -21,7 +21,11 @@ class NgramModel:
         self.alphabet: set[str] = {EOS}
 
     def fit(self, normalized_terms: Iterable[str]) -> None:
-        """Learn counts from normalized terms, preserving repeated terms."""
+        """Count next characters and EOS for every available context suffix.
+
+        Args:
+            normalized_terms: Training terms, including repeated interactions.
+        """
         self.counts = {}
         self.alphabet = {EOS}
         term_count = 0
@@ -37,7 +41,6 @@ class NgramModel:
                 target = term[position] if position < len(term) else EOS
                 max_length = min(self.order - 1, position)
 
-                # Include the empty context and every available suffix.
                 for length in range(max_length + 1):
                     context = term[position - length : position]
 
@@ -50,7 +53,13 @@ class NgramModel:
             raise ValueError("Training requires at least one nonempty term")
 
     def next_log_probs(self, context: str) -> dict[str, float]:
-        """Return smoothed log probabilities using the longest seen suffix."""
+        """Predict from the longest known suffix, with add-alpha smoothing.
+
+        Args:
+            context: Characters already typed or generated.
+        Returns:
+            Next token to log probability, including EOS.
+        """
         if not self.counts:
             raise ValueError("Call fit() before requesting predictions")
 
@@ -75,22 +84,31 @@ class NgramModel:
         }
 
     def greedy_complete(self, raw_prefix: str) -> dict[str, object]:
-        """using the shared decoding algorithm."""
+        """Generate a query using the shared greedy decoder.
+
+        Args:
+            raw_prefix: Raw typed prefix.
+        Returns:
+            Completion, log score and stop reason.
+        """
         if not self.counts:
             raise ValueError("Call fit() before generating completions")
+
         return greedy_complete(raw_prefix, self.next_log_probs)
 
 
 if __name__ == "__main__":
     model = NgramModel(order=3, alpha=0.1)
     model.fit(["cat", "cat", "car"])
-    print("Terms: ['cat', 'cat', 'car']; at most two context characters")
+    print("Terms: ['cat', 'cat', 'car']")
     print("Next-character counts after 'ca':", dict(model.counts["ca"]))
+
     for context in ("ca", "za"):
         probabilities = {
             token: round(math.exp(score), 3)
             for token, score in model.next_log_probs(context).items()
         }
         print(f"P(next | {context!r}):", probabilities)
+
     print("End counts after 'at':", dict(model.counts["at"]))
     print("Greedy completion:", model.greedy_complete("ca"))
