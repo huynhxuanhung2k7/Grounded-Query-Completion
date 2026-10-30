@@ -30,3 +30,11 @@ def is_compatible_completion(
     
     added_length = len(normalized_term) - len(normalized_prefix)
     return added_length <= MAX_ADDED_LENGTH
+
+
+if __name__ == "__main__":
+    print("Prepared '  CAT  ':", prepare_prefix("  CAT  "))
+    print("Prepared empty input:", prepare_prefix(""))
+    for term in ("cat food", "caterpillar"):
+        print(f"'cat ' -> {term!r}:", is_compatible_completion("cat ", term))
+    print("Already complete:", is_compatible_completion("cat", "cat"))

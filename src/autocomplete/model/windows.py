@@ -82,16 +82,13 @@ class NextCharacterDataset(Dataset):
             torch.tensor(context, dtype=torch.long),
             torch.tensor(target, dtype=torch.long),
         )
-        
-        
+
+
 if __name__ == "__main__":
     vocabulary = CharVocabulary(["cat"])
-    dataset = NextCharacterDataset(
-        ["cat"],
-        vocabulary,
-        context_length=3,
-    ) 
-        
+    dataset = NextCharacterDataset(["cat"], vocabulary, context_length=2)
+    print("Stored terms:", dataset.encoded_terms)
+    print("Number of examples:", len(dataset), "(three characters plus EOS)")
     for context, target in dataset:
         context_tokens = [
             vocabulary.id_to_token[token_id]

@@ -79,3 +79,18 @@ class NgramModel:
         if not self.counts:
             raise ValueError("Call fit() before generating completions")
         return greedy_complete(raw_prefix, self.next_log_probs)
+
+
+if __name__ == "__main__":
+    model = NgramModel(order=3, alpha=0.1)
+    model.fit(["cat", "cat", "car"])
+    print("Terms: ['cat', 'cat', 'car']; at most two context characters")
+    print("Next-character counts after 'ca':", dict(model.counts["ca"]))
+    for context in ("ca", "za"):
+        probabilities = {
+            token: round(math.exp(score), 3)
+            for token, score in model.next_log_probs(context).items()
+        }
+        print(f"P(next | {context!r}):", probabilities)
+    print("End counts after 'at':", dict(model.counts["at"]))
+    print("Greedy completion:", model.greedy_complete("ca"))

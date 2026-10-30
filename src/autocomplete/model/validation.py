@@ -48,3 +48,27 @@ def evaluate(model: nn.Module, loader: DataLoader) -> dict[str, int | float | No
         if total_targets
         else None,
     }
+
+
+if __name__ == "__main__":
+    from autocomplete.model.model import NeuralCharModel
+    from autocomplete.model.vocabulary import CharVocabulary
+    from autocomplete.model.windows import NextCharacterDataset
+
+    torch.manual_seed(42)
+    vocabulary = CharVocabulary(["cat"])
+    model = NeuralCharModel(
+        len(vocabulary), context_length=2, embedding_dim=4, hidden_dim=8
+    )
+    dataset = NextCharacterDataset(
+        ["cap"], vocabulary, context_length=2, allow_unknown=True
+    )
+    before = [parameter.detach().clone() for parameter in model.parameters()]
+    print("Training vocabulary: 'cat'; validation term: 'cap'")
+    report = evaluate(model, DataLoader(dataset, batch_size=4))
+    print("Validation report:", report)
+    unchanged = all(
+        torch.equal(saved, current)
+        for saved, current in zip(before, model.parameters(), strict=True)
+    )
+    print("Weights unchanged:", unchanged)

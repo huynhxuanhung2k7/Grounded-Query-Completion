@@ -56,3 +56,23 @@ def train_one_epoch(
         "target_count": target_count,
         "elapsed_seconds": perf_counter() - started,
     }
+
+
+if __name__ == "__main__":
+    from autocomplete.model.model import NeuralCharModel
+    from autocomplete.model.vocabulary import CharVocabulary
+    from autocomplete.model.windows import NextCharacterDataset
+
+    torch.manual_seed(42)
+    vocabulary = CharVocabulary(["cat"])
+    dataset = NextCharacterDataset(["cat"], vocabulary, context_length=2)
+    loader = DataLoader(dataset, batch_size=4, shuffle=False)
+    model = NeuralCharModel(
+        len(vocabulary), context_length=2, embedding_dim=4, hidden_dim=8
+    )
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    before = model.network[-1].weight.detach().clone()
+    print("In-memory toy model; one batch includes the EOS target")
+    report = train_one_epoch(model, loader, optimizer, nn.CrossEntropyLoss())
+    print("Targets:", report["target_count"], "Loss:", round(report["loss"], 6))
+    print("Output weights changed:", not torch.equal(before, model.network[-1].weight))

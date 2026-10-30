@@ -93,3 +93,21 @@ def save_evaluation_artifact(path: Path, artifact: dict) -> bool:
         output.write(payload)
 
     return True
+
+
+if __name__ == "__main__":
+    from tempfile import TemporaryDirectory
+
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "summary.json"
+        result = {"request_count": 2, "success_at_10": 0.5}
+        print("First save creates a file:", save_json(path, result))
+        print("Identical save reuses it:", save_json(path, result))
+        digest = file_sha256(path)
+        verify_file_hash(path, digest)
+        print("Verified SHA-256:", digest)
+        try:
+            save_json(path, {"request_count": 3})
+        except FileExistsError:
+            print("Different content: overwrite refused")
+        print("Saved content remains:", json.loads(path.read_text()))

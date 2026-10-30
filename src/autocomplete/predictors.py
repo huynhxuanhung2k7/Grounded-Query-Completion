@@ -141,3 +141,16 @@ def make_suggester(
         return completion_prediction(greedy_complete(prefix, predict))
 
     return predict_prefix
+
+
+if __name__ == "__main__":
+    print("Reading existing historical catalog:", HISTORY_CATALOG)
+    suggest = make_suggester("popularity")
+    for prefix in ("cat ", ""):
+        prediction = suggest(prefix)
+        print(f"Prefix {prefix!r}: {len(prediction['suggestions'])} suggestions")
+        ranked = list(zip(
+            prediction["suggestions"], prediction["scores"], strict=True
+        ))
+        print("First three (term, count):", ranked[:3])
+        print("Stop reason:", prediction["stop_reason"])

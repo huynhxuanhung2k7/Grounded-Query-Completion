@@ -168,3 +168,17 @@ def evaluate_popularity(
     evaluation = evaluate_cases(cases, predict)
     # Preserve the existing public return shape and saved popularity artifacts.
     return {key: evaluation[key] for key in ("results", "summary")}
+
+
+
+if __name__ == "__main__":
+    suggestions = ["cat food", "cat toy"]
+    print("Ranked suggestions:", suggestions)
+    
+    hit = score_case(suggestions, "cat toy")
+    miss = score_case(suggestions, "cat bed")
+    print("Answer 'cat toy' (hit, reciprocal rank):", hit)
+    print("Answer 'cat bed' (hit, reciprocal rank):", miss)
+   
+    print("Summary:", summarize_scores([hit, miss]))
+    print("No requests:", summarize_scores([]))

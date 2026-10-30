@@ -64,3 +64,18 @@ def load_partition(raw_path: Path, manifest_path: Path | None = None):
 
 def normalized_terms(records: list[dict]) -> list[str]:
     return [normalize_term(record["final_search_term"]) for record in records]
+
+
+if __name__ == "__main__":
+    from tempfile import TemporaryDirectory
+
+    from datasets import Dataset
+
+    rows = [{"final_search_term": "  CAT Food "}, {"final_search_term": "cat toy"}]
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "queries.parquet"
+        Dataset.from_list(rows).to_parquet(str(path))
+        loaded = read_parquet(path)
+        print("Loaded records:", loaded)
+        print("Normalized terms:", normalized_terms(loaded))
+        print("Empty record list:", normalized_terms([]))

@@ -21,3 +21,13 @@ OFFICIAL_MANIFEST = Path("datasets/amazonqac/processed/official_manifest.json")
 BEAM_WIDTH = 20
 CANDIDATE_BUDGET = 50
 MAX_SUGGESTIONS = 10
+
+
+if __name__ == "__main__":
+    print("Run from project/; current directory:", Path.cwd())
+    print("Training source:", INPUT)
+    print("Historical catalog:", HISTORY_CATALOG)
+    print("Neural checkpoint:", CHECKPOINT)
+    print("Live beam width:", BEAM_WIDTH)
+    print("Finished candidate budget:", CANDIDATE_BUDGET)
+    print("Maximum displayed suggestions:", MAX_SUGGESTIONS)

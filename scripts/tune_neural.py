@@ -1,40 +1,31 @@
+import json
 import math
 from pathlib import Path
-from math import ceil
 from time import perf_counter
 
-
-import json
 import optuna
-
-from autocomplete.artifacts import load_development_inputs
-from autocomplete.config import OUTPUT
-from autocomplete.data.loading import load_partition, normalized_terms
-from autocomplete.model.vocabulary import CharVocabulary
-
 import torch
+from optuna.trial import Trial
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from optuna.trial import Trial
 
-from autocomplete.model.model import NeuralCharModel
-from autocomplete.model.windows import NextCharacterDataset
-from autocomplete.model.training import train_one_epoch
-from autocomplete.model.validation import evaluate
-
-from autocomplete.artifacts import save_json
+from autocomplete.artifacts import file_sha256, load_development_inputs, save_json
 from autocomplete.config import (
-    INPUT,
-    MANIFEST,
     BEAM_WIDTH,
     CANDIDATE_BUDGET,
+    INPUT,
+    MANIFEST,
+    OUTPUT,
 )
-
-from autocomplete.evaluation import evaluate_cases
-from autocomplete.predictors import make_suggester
-
-from autocomplete.artifacts import file_sha256
+from autocomplete.data.loading import load_partition, normalized_terms
 from autocomplete.data.normalization import NORMALIZATION_VERSION
+from autocomplete.evaluation import evaluate_cases
+from autocomplete.model.model import NeuralCharModel
+from autocomplete.model.training import train_one_epoch
+from autocomplete.model.validation import evaluate
+from autocomplete.model.vocabulary import CharVocabulary
+from autocomplete.model.windows import NextCharacterDataset
+from autocomplete.predictors import make_suggester
 
 N_TRIALS = 40
 MAX_EPOCHS = 10

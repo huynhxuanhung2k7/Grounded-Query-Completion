@@ -287,3 +287,27 @@ def exact_filter(
             results.append(candidate)
 
     return results
+
+if __name__ == "__main__":
+    
+    probabilities = {
+        "ca": {"t": 0.6, "r": 0.4},
+        "cat": {EOS: 0.5, "s": 0.5},
+        "car": {EOS: 1.0}, "cats": {EOS: 1.0},
+    }
+
+    def toy_next_log_probs(text):
+        return {token: math.log(p) for token, p in probabilities[text].items()}
+
+    print("Toy next-token probabilities:", probabilities)
+    
+    print("Greedy:", greedy_complete("ca", toy_next_log_probs))
+    pool = beam_candidates("ca", toy_next_log_probs, beam_width=2, candidate_budget=3)
+    print("Beam (full-path probabilities):", [
+        (row["completion"], round(math.exp(row["log_score"]), 3))
+        for row in pool["candidates"]
+    ])
+    
+    filtered = exact_filter(pool["candidates"], {"cat", "cats"})
+    print("Catalog {'cat', 'cats'} keeps:", [row["completion"] for row in filtered])
+    print("Empty prefix:", greedy_complete("", toy_next_log_probs)["stop_reason"])

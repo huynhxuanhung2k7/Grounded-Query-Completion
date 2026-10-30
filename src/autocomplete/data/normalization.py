@@ -23,3 +23,12 @@ def normalize_prefix(text: str) -> str:
     collapsed = " ".join(normalized.split())
 
     return collapsed + (" " if collapsed and had_trailing_whitespace else "") #check collapsed here to prevent returning " ", but ""
+
+
+if __name__ == "__main__":
+    raw = "  ＣＡＴ   Food \t"
+    print("Raw input:", repr(raw))
+    print("Completed term:", repr(normalize_term(raw)))
+    print("Typed prefix:", repr(normalize_prefix(raw)))
+
+    print("Whitespace-only prefix:", repr(normalize_prefix("   ")))

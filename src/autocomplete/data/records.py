@@ -304,3 +304,25 @@ def write_development_cases(
     
     path.write_bytes(payload)
     return digest
+
+
+if __name__ == "__main__":
+    sample = {
+        "session_id": "toy", "prefixes": ["c", "ca"],
+        "final_search_term": "cat", "popularity": 1,
+    }
+    times = [
+        ("2023-09-24 12:00:00", "2023-09-24 12:00:01"),
+        ("2023-09-25 12:00:00", "2023-09-25 12:00:01"),
+        ("2023-09-24 23:59:59", "2023-09-25 00:00:01"),
+    ]
+    records = [
+        dict(sample, query_id=i, first_prefix_typed_time=start, search_time=end)
+        for i, (start, end) in enumerate(times, start=1)
+    ]
+    partition = partition_record(records)
+    print("Cutoff:", CUTOFF)
+    print("Training IDs:", [row["query_id"] for row in partition.train])
+    print("Development IDs:", [row["query_id"] for row in partition.development])
+    print("Quarantine:", [(row["query_id"], reason) for row, reason in partition.quarantine])
+    print("Chosen development case:", make_development_cases(partition, seed=42)[0])

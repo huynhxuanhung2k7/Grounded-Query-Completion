@@ -44,3 +44,11 @@ def suggest_popular(
     ranked = sorted(eligible, key=lambda term: (-counts[term], term))
 
     return ranked[:k]
+
+
+if __name__ == "__main__":
+    counts = {"cat food": 2, "cat bed": 2, "cat toy": 1, "dog food": 10}
+    catalog = set(counts)
+    print("Historical counts:", counts)
+    print("Top two for 'cat ':", suggest_popular(catalog, counts, "cat ", k=2))
+    print("No matching term:", suggest_popular(catalog, counts, "bird"))

@@ -82,3 +82,12 @@ class CharVocabulary:
                 raise ValueError("Special tokens cannot be decoded as characters")
             characters.append(self.id_to_token[token_id])
         return "".join(characters)
+
+
+if __name__ == "__main__":
+    vocabulary = CharVocabulary(["cat"])
+    print("Token IDs:", vocabulary.token_to_id)
+    encoded = vocabulary.encode("cat")
+    print("Encoded:", encoded)
+    print("Decoded:", vocabulary.decode(encoded))
+    print("Unknown character 'z':", vocabulary.encode("z"))

@@ -37,3 +37,30 @@ def load_checkpoint(
     model.eval()
 
     return model, vocabulary, checkpoint
+
+
+if __name__ == "__main__":
+    from tempfile import TemporaryDirectory
+
+    torch.manual_seed(42)
+    vocabulary = CharVocabulary(["cat"])
+    config = {
+        "vocab_size": len(vocabulary), "context_length": 2,
+        "embedding_dim": 4, "hidden_dim": 8,
+    }
+    original = NeuralCharModel(**config).eval()
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "toy.pt"
+        torch.save({
+            "format_version": 1, "normalization_version": NORMALIZATION_VERSION,
+            "model_config": config, "model_state": original.state_dict(),
+            "id_to_token": vocabulary.id_to_token,
+        }, path)
+        restored, restored_vocabulary, _ = load_checkpoint(path)
+        print("Restored token order:", restored_vocabulary.id_to_token)
+        print("Inference mode:", not restored.training)
+        context = torch.tensor([vocabulary.encode("ca")], dtype=torch.long)
+        with torch.no_grad():
+            same_logits = torch.equal(original(context), restored(context))
+            print("Same logits after reload:", same_logits)
+    print("Toy checkpoint removed; experiment checkpoints were not used")

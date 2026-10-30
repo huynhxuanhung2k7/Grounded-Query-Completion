@@ -1,4 +1,8 @@
-from autocomplete.baseline.catalog import build_catalog, count_history_terms, find_prefix_matches
+from autocomplete.baseline.catalog import (
+    build_catalog,
+    count_history_terms,
+    find_prefix_matches,
+)
 
 
 def test_build_catalog_normalizes_and_deduplicates() -> None:

@@ -86,3 +86,15 @@ def find_prefix_matches(
         return []
 
     return sorted(term for term in catalog if term.startswith(normalized_prefix))
+
+
+if __name__ == "__main__":
+    history = [
+        {"final_search_term": term}
+        for term in (" Cat food ", "cat food", "cat toy", "   ")
+    ]
+    catalog = build_catalog(history)
+    print("Unique normalized terms:", sorted(catalog))
+    print("Interaction counts:", count_history_terms(history))
+    print("Matches for 'cat ':", find_prefix_matches(catalog, "cat "))
+    print("Empty prefix:", find_prefix_matches(catalog, ""))
